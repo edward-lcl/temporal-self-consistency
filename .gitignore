@@ -1,0 +1,21 @@
+# Large generated datasets
+data/prep/*.jsonl
+data/prep/all_triples.jsonl
+predictions/
+*.ckpt
+*.safetensors
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Results artifacts (regenerated)
+results.json
+results_table.*
+*.wandb
+
+# OS
+.DS_Store

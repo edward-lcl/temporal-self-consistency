@@ -1,0 +1,10 @@
+{"question": "What is the speed of light in vacuum?", "gold_answer": "299792458 metres per second", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the boiling point of water at standard atmospheric pressure?", "gold_answer": "100 degrees Celsius", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the freezing point of water at standard pressure?", "gold_answer": "0 degrees Celsius", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the atomic number of carbon?", "gold_answer": "6", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the atomic number of oxygen?", "gold_answer": "8", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the chemical formula of water?", "gold_answer": "H2O", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the chemical formula of carbon dioxide?", "gold_answer": "CO2", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "How many protons does a hydrogen atom have?", "gold_answer": "1", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is the gravitational acceleration on Earth?", "gold_answer": "9.81 metres per second squared", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
+{"question": "What is absolute zero in Celsius?", "gold_answer": "-273.15 degrees Celsius", "volatility": "immutable", "expected_hedge": "[CONFIDENT]"}
