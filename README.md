@@ -69,6 +69,13 @@ python src/evaluation/generate_results_table.py
 
 Predictions are produced by the training lead's checkpoints and dropped into `predictions/` (gitignored). This repo consumes those files; it does not train or run inference.
 
+The large dataset files (`all_triples.jsonl` and the train/val/test splits) are gitignored here and hosted on HuggingFace instead: **[jasontae/temporal-delta](https://huggingface.co/datasets/jasontae/temporal-delta)**. Download them with:
+
+```bash
+pip install huggingface_hub
+hf download jasontae/temporal-delta --repo-type dataset --local-dir ./data/prep
+```
+
 ## Prediction format
 
 Every prediction the eval pipeline consumes must be a JSON object with:
@@ -99,7 +106,7 @@ Every prediction the eval pipeline consumes must be a JSON object with:
 
 | Dataset | Role |
 |---|---|
-| TemporalDelta (ours) | Training + test — Wikidata 11-property SPARQL extraction |
+| [TemporalDelta (ours)](https://huggingface.co/datasets/jasontae/temporal-delta) | Training + test — Wikidata 11-property SPARQL extraction |
 | PAT-Questions | Training contrastive pairs + eval |
 | FreshQA | Primary eval — fast-changing facts |
 | TLQA | Eval — list-based temporal QA |
