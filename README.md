@@ -1,6 +1,6 @@
 # TSCT: Temporal Self-Consistency Training
 
-Training language models to natively distinguish time-stable from time-volatile facts and express calibrated temporal uncertainty — without retrieval at inference time.
+Training language models to natively distinguish time-stable from time-volatile facts and express calibrated temporal uncertainty without retrieval at inference time.
 
 ## Overview
 
@@ -15,10 +15,12 @@ Language models answer questions about a changing world using frozen weights. Th
 
 **Research question:** Can a language model be trained to reliably distinguish time-stable from time-volatile factual claims and express calibrated uncertainty about the latter, without access to external retrieval at inference time?
 
+This repository contains the **evaluation and data-pipeline** side of the project. Training and inference are maintained separately by the training lead.
+
 ## Repository structure
 
 ```
-tsct-temporal-calibration/
+temporal-self-consistency/
 ├── data/
 │   ├── prep/               # (gitignored) large generated datasets
 │   ├── stress_tests/       # adversarial + mixed-paragraph stress sets
@@ -29,16 +31,14 @@ tsct-temporal-calibration/
 │   │   ├── prep_stress_horizon.py  # 18-36 month post-cutoff facts
 │   │   ├── prep_stress_stable.py   # over-hedging detector set
 │   │   └── prep_stress_mixed.py    # mixed stable/volatile paragraphs
-│   ├── evaluation/         # the metrics pipeline
-│   │   ├── eval_pipeline.py        # ECE, EM/F1, volatility, Bonferroni, etc.
-│   │   ├── adapt_predictions.py    # normalize team output formats
-│   │   ├── full_analysis.py        # run all prediction files
-│   │   ├── generate_results_table.py  # MD/LaTeX/CSV results tables
-│   │   ├── hedge_quality_rubric.py # human-eval rubric + auto scoring
-│   │   └── paper_plots.py          # all 6 paper figures
-│   └── training/           # training-side reference code
-│       ├── tcl_loss.py             # Temporal Calibration Loss (reference)
-│       └── run_inference.py        # checkpoint -> predictions
+│   └── evaluation/         # the metrics pipeline
+│       ├── eval_pipeline.py        # ECE, EM/F1, volatility, Bonferroni, etc.
+│       ├── adapt_predictions.py    # normalize team output formats
+│       ├── full_analysis.py        # run all prediction files
+│       ├── generate_results_table.py  # MD/LaTeX/CSV results tables
+│       ├── hedge_quality_rubric.py # human-eval rubric + auto scoring
+│       └── paper_plots.py          # all 6 paper figures
+├── scripts/                # convenience runners
 ├── figures/                # generated paper figures
 ├── paper/                  # paper draft
 ├── docs/                   # proposal, status, design notes
@@ -56,22 +56,18 @@ python src/data_pipeline/prep_stress_stable.py
 python src/data_pipeline/prep_stress_mixed.py
 # prep_stress_horizon.py needs all_triples.jsonl in the working dir
 
-# 2. Run a checkpoint on a benchmark (needs GPU)
-python src/training/run_inference.py \
-    --checkpoint <hf_repo> --subfolder exp3_tsct_seed42 \
-    --benchmark temporal_delta_test.jsonl \
-    --output predictions/tsct_seed42_temporal_delta.jsonl
-
-# 3. Normalize any team prediction file to the canonical format
+# 2. Normalize any team prediction file to the canonical format
 python src/evaluation/adapt_predictions.py raw_preds.jsonl clean_preds.jsonl
 
-# 4. Run the full evaluation across all prediction files
+# 3. Run the full evaluation across all prediction files
 TSCT_PREDICTIONS_DIR=./predictions python src/evaluation/full_analysis.py
 
-# 5. Generate figures and the results table
+# 4. Generate figures and the results table
 python src/evaluation/paper_plots.py
 python src/evaluation/generate_results_table.py
 ```
+
+Predictions are produced by the training lead's checkpoints and dropped into `predictions/` (gitignored). This repo consumes those files; it does not train or run inference.
 
 ## Prediction format
 
@@ -112,8 +108,8 @@ Every prediction the eval pipeline consumes must be a JSON object with:
 
 ## Status
 
-See `docs/STATUS.md` for the live task tracker. As of the latest update, the evaluation infrastructure is complete and verified; model checkpoints are being debugged (see `docs/tcl_debugging.md`).
+See `docs/STATUS.md` for the live task tracker. As of the latest update, the evaluation infrastructure is complete and verified; model checkpoints are being debugged on the training side (see `docs/tcl_debugging.md`).
 
 ## Team
 
-Jason (project lead + evaluation), Tanvi (training), Logan (baselines), Aarav (data).
+Jason Tae (project lead + evaluation), Tanvi Varangaonkar (training), Logan Kim (baselines), Aarav Vignesh (data).
