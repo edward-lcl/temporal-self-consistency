@@ -61,6 +61,8 @@ and the discrete hedge-token parameterisation is what discards it.**
 | B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` (n=1) |
 | B6 / B7 — fine-tuning adds no knowledge, and causes entity interference | `SUPPORTED` |
 | B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
+| **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
+| C8 — `exact_match` is a mild floor; the obvious relaxation enriches for name collisions | `ESTABLISHED` |
 | **B8 — the model's own logprobs predict its correctness at 0.84 where the hedge scheme is at chance** | **`SUPPORTED`, qualified** (z=13.6 but AP only 3.3x baseline; 35% of positives are train-seen) |
 
 Two independent reasons this setup could not have shown a TCL effect even if one
@@ -390,6 +392,22 @@ signals compared as predictors of *whether the model's own answer is right*:
 | mean answer log-probability (free, already there) | 0.8406 | **0.8465** |
 | min answer log-probability | 0.8415 | **0.8485** |
 
+**And the untuned model's signal is better still.** Same questions, base model
+vs fine-tuned:
+
+| arm | correct | logprob AUROC |
+|---|---|---|
+| **base (no fine-tuning)** | **142** | **0.8814** |
+| TSCT | 99 | 0.8406 |
+
+Fine-tuning made the model less accurate (142 -> 99 correct) *and* degraded the
+self-knowledge signal it already had (0.8814 -> 0.8406) *and* added a hedge
+output that is at chance (0.4997). Every axis we can measure moved the wrong way.
+
+The sharpest statement of the finding is therefore: **the untuned model already
+carries the best calibration signal in the system, and every subsequent stage of
+the pipeline degrades or discards it.**
+
 The trained four-token scheme is **at chance** within a relation (B5). The
 model's own token probabilities, which cost nothing and require no training,
 separate correct from incorrect answers at **~0.85**.
@@ -619,6 +637,64 @@ consistent with C3's 86% "neither" bucket.
    previously wrote "do not report any accuracy or ECE number from this split" —
    that was too strong. They can be reported **with the label-as-of date stated**
    and the 6x overstatement noted.
+
+## C7. Fine-tuning explicitly teaches the wrong answer for 29% of the test set
+**`ESTABLISHED`** — and it is the mechanism behind B6 and B7
+
+The split is partitioned by **time**, not by question. The same question
+("Who is the CEO of X?") therefore appears in multiple splits with different
+answers:
+
+| | count |
+|---|---|
+| unique test questions | 3,177 |
+| **also present in TRAIN** | **927 (29.2%)** |
+| ...of those, TRAIN teaches a *different* answer | **895 (96.5%)** |
+
+So for roughly 900 test items, fine-tuning shows the model the question with the
+**2018-2021** value, and the test then asks the same question expecting the
+**2023-2024** value. The training procedure actively teaches the answer the
+evaluation marks wrong.
+
+**This is the mechanism behind B6 and B7.** Fine-tuning lowers volatile-fact
+accuracy (0.0392 -> 0.0273) and floods predictions with wrong-entity values
+(7.9% -> 42.1%) because that is precisely what it was trained to do on a third of
+these questions. Those were previously recorded as observations without a cause;
+this is the cause.
+
+Not a labelling bug so much as an unavoidable consequence of time-partitioning a
+fact table — but it makes "train on TemporalDelta, test on TemporalDelta" a
+self-defeating protocol for anything except measuring memorisation of the older
+snapshot. Any future design should partition by **entity**, not by time, or
+exclude train-seen questions from the test set and report that subset separately.
+
+## C8. `exact_match` is a mild capability floor, but the obvious relaxation is worse
+**`ESTABLISHED`**
+
+Checking whether EM undercounts correct answers (base arm): 158/3,622 (4.4%) are
+scored wrong with nonzero token overlap, 85 at f1>=0.5. Counting those as correct
+would move accuracy 3.92% -> 6.27%.
+
+**It should not be done.** Inspecting that bucket, it is dominated by
+name-collision artifacts rather than genuine variants:
+
+| predicted | gold | verdict |
+|---|---|---|
+| Lachlan Murdoch | Rupert Murdoch | different people, shared surname |
+| Michel Boyer | Michel Paulin | different people, shared forename |
+| Petr Chmelík | Petr Witowski | different people, shared forename |
+| **Dave Calhoun** | **David Calhoun** | **genuine — same person** |
+| **Richard Gonzalez** | **Richard A. Gonzalez** | **genuine — same person** |
+
+Genuine undercount is a handful of items, not 85. This is the same failure mode
+_The Recall Debt_ documents in its Section 5: a plausible relaxation
+(there, embedding-disjointness; here, f1>=0.5) **enriches for collisions rather
+than purifying**, and a weak gate waves them through. Our own proposed fix would
+have inflated accuracy by ~60% relative, almost entirely with wrong people who
+share a name.
+
+Conclusion: keep EM, note it is a slight floor, and do **not** substitute a fuzzy
+threshold without a capability-grade check on what it admits.
 
 ## C6. The verification reference has its own lag — "current" is not ground truth
 **`ESTABLISHED`** (as a constraint on method, before any D8 number is read)
