@@ -231,6 +231,41 @@ stratified.
 minimise ECE by implementing the B3 exploit more precisely. It should be reported
 as a **baseline that requires no capability**, never as a method.
 
+## B6. Fine-tuning does not improve factual accuracy; it installs the hedge lookup
+**`SUPPORTED`** (n=1 seed per arm, format-matched)
+
+D1 baseline. Untuned `Qwen2.5-7B-Instruct-4bit` vs both fine-tuned arms, on
+identical questions:
+
+| arm | test EM | test contains | stable EM | mean words |
+|---|---|---|---|---|
+| **base** | **0.0392** | 0.0425 | **0.7551** | 3.5 |
+| SFT-only | 0.0226 | 0.0229 | 0.8571 | 2.3 |
+| TSCT | 0.0273 | 0.0273 | 0.8776 | 2.4 |
+
+Fine-tuning **lowers** volatile-fact accuracy (0.0392 -> 0.0273, **-1.19pp, -30%
+relative**) and **raises** stable-fact accuracy (0.7551 -> 0.8776, +12.2pp, but
+n=49 so ~2 SE). The volatile regression sits right at the edge of the proposal's
+stated 1-2pp accuracy-regression budget.
+
+Combined with B5: fine-tuning's contribution is the relation->hedge lookup table,
+bought at roughly a point of volatile-fact accuracy. It did not teach the model
+anything factual.
+
+**Measurement note — a confound that nearly produced a false headline.** The
+first D1 pass ran the base model unprompted. It answered in prose (mean **45.1
+words** vs 2.6 for fine-tuned arms), giving 17x the surface area for a
+containment match, and reported base at 10.1% vs 3.9% -- a fake 2.6x advantage.
+The obvious correction (require gold to be >15% of generated words) over-corrects
+in the opposite direction, since a two-word name cannot be 15% of a 45-word
+answer; it put base at 0.3%. Neither number was real. Fixed at the source with a
+brevity instruction (`--answer-hint`), bringing base to 3.5 words and making EM
+and containment agree for every arm. The corrected gap is 1.4x, not 2.6x.
+Recorded because the failure mode -- comparing a format-tuned model against an
+untuned one and reporting the format difference as a knowledge difference -- is
+exactly the class of error this ledger exists to catch.
+`base_test_unprompted_partial.jsonl` is retained as the robustness record.
+
 ---
 
 # C. Claims about the data and task
@@ -288,7 +323,7 @@ suggests it does not know the post-change values. Not a substitute for an audit.
 
 | # | question | why it matters | cost |
 |---|---|---|---|
-| D1 | What does the **base model** (no fine-tuning) score? | Every claim is SFT-vs-TSCT. Nobody has measured whether training helped *at all*. First thing a reviewer asks. | ~15 min, script exists |
+| ~~D1~~ | **RESOLVED** -> see B6. Fine-tuning lowers volatile EM 30% relative and raises stable EM; it adds the hedge lookup, not knowledge. | — | done |
 | D2 | Do the confidence scalars fit realised accuracy? | 0.95/0.75/0.45/0.10 are assigned by fiat. Realised: 2.7% volatile, 87.8% stable. Fitting them is where ECE actually lives — and it is a **contribution**, not a patch. | ~1 h |
 | D3 | Does B4 survive seeds? | Most consequential, least replicated claim here. | ~3.6 h |
 | D4 | What is in the 86% "neither" bucket? | Distinguishes "no knowledge" from "corrupted knowledge". Mechanistic. | ~1 h |

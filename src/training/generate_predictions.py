@@ -58,6 +58,11 @@ from .hedge_tokens import HEDGE_TOKENS, HEDGE_TO_CONFIDENCE
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _norm(s):
+    """Lowercase + collapse whitespace. Used only for the containment check."""
+    return " ".join(str(s).lower().split())
+
+
 def _load_scoring_fns():
     """Reuse the eval pipeline's own normalisation rather than reimplementing.
 
@@ -73,6 +78,24 @@ def _load_scoring_fns():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.exact_match, mod.token_f1
+
+
+def load_base_only(model_id):
+    """Load the untuned base model, with hedge tokens registered but untrained.
+
+    For the D1 baseline: did fine-tuning help at all? Note the hedge output is
+    *meaningless* here -- the hedge rows are the identical padding rows Qwen2.5
+    ships (see CLAIMS-LEDGER A3), so argmax over them is a constant tie-break,
+    not a prediction. Only the answer metrics from a base run are interpretable.
+    """
+    model, tokenizer = load(model_id)
+    hf_tok = getattr(tokenizer, "_tokenizer", tokenizer)
+    new = [t for t in HEDGE_TOKENS if t not in set(hf_tok.get_vocab().keys())]
+    if new:
+        hf_tok.add_special_tokens({"additional_special_tokens": new})
+    hedge_ids = [hf_tok.convert_tokens_to_ids(t) for t in HEDGE_TOKENS]
+    model.eval()
+    return model, tokenizer, hedge_ids, {"model": model_id, "base_only": True}
 
 
 def rebuild_adapter(adapter_dir):
@@ -157,7 +180,10 @@ def load_source(name, limit=None):
     return rows[:limit] if limit else rows
 
 
-def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40):
+ANSWER_HINT = " Answer with only the name, no explanation."
+
+
+def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hint=False):
     """Greedy decode one example; return (answer_text, hedge, used_fallback).
 
     Prompt format mirrors training exactly (chat template + generation
@@ -171,8 +197,15 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40):
     free generation, which would be a finding in itself.
     """
     hf_tok = getattr(tokenizer, "_tokenizer", tokenizer)
+    # The fine-tuned arms were TRAINED to answer bare (mean 2.6 words). An
+    # unprompted base model answers in prose (mean 45.1 words), which breaks
+    # any containment-based comparison: 17x the surface area to contain the
+    # gold string by enumeration rather than assertion. Matching the behaviour
+    # is fairer than matching the prompt, so base runs get a brevity hint.
+    # Recorded in the output so the asymmetry is never invisible.
+    content = question + (ANSWER_HINT if answer_hint else "")
     prompt_ids = list(hf_tok.apply_chat_template(
-        [{"role": "user", "content": question}],
+        [{"role": "user", "content": content}],
         tokenize=True, add_generation_prompt=True, return_dict=False,
     ))
     eos_id = hf_tok.eos_token_id
@@ -203,16 +236,31 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--adapter", required=True)
+    p.add_argument("--adapter", default=None)
+    p.add_argument(
+        "--base", default=None,
+        help="Model id to run with NO adapter (D1 baseline). Hedge output from a base "
+             "run is meaningless -- only the answer metrics are interpretable.",
+    )
     p.add_argument("--source", default="temporal-delta:test")
     p.add_argument("--out", required=True)
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--max-tokens", type=int, default=40)
+    p.add_argument(
+        "--answer-hint", action="store_true",
+        help="Append a brevity instruction. Use for --base runs so output length is comparable to the fine-tuned arms; see generate_one().",
+    )
     args = p.parse_args()
+    if bool(args.adapter) == bool(args.base):
+        p.error("pass exactly one of --adapter or --base")
 
     exact_match, token_f1 = _load_scoring_fns()
-    model, tokenizer, hedge_ids, cfg = rebuild_adapter(args.adapter)
-    arm = "sft_only" if "sft_only" in str(args.adapter) else "tsct"
+    if args.base:
+        model, tokenizer, hedge_ids, cfg = load_base_only(args.base)
+        arm = "base"
+    else:
+        model, tokenizer, hedge_ids, cfg = rebuild_adapter(args.adapter)
+        arm = "sft_only" if "sft_only" in str(args.adapter) else "tsct"
     rows = load_source(args.source, args.limit)
     print(f"[gen] {len(rows)} examples | source={args.source} | arm={arm} | adapter={args.adapter}",
           flush=True)
@@ -225,9 +273,16 @@ def main():
     with open(out_path, "w") as f:
         for i, r in enumerate(rows):
             text, hedge, fb = generate_one(
-                model, tokenizer, hedge_ids, r["question"], args.max_tokens
+                model, tokenizer, hedge_ids, r["question"], args.max_tokens,
+                answer_hint=args.answer_hint,
             )
             correct = exact_match(text, r["gold_answer"])
+            # Containment guards a real confound in the D1 comparison: a base
+            # model answers in prose ("The CEO of Nike is X"), a fine-tuned one
+            # answers bare. Scoring only EM would charge the base model for
+            # formatting and report it as a knowledge gap. `gold_in_generation`
+            # is format-insensitive, so the comparison measures knowledge.
+            gold_in_gen = _norm(r["gold_answer"]) in _norm(text) if text else False
             n_fallback += fb
             n_correct += correct
             n_hedge_right += hedge == r["gold_hedge"]
@@ -239,6 +294,7 @@ def main():
                 "gold_hedge": r["gold_hedge"],
                 "confidence": HEDGE_TO_CONFIDENCE[hedge],
                 "correct": bool(correct),
+                "gold_in_generation": bool(gold_in_gen),
                 "f1": token_f1(text, r["gold_answer"]),
                 "volatility": r["volatility"],
                 "change_year": r["change_year"],
@@ -246,6 +302,7 @@ def main():
                 "arm": arm, "adapter": str(args.adapter),
                 "model": cfg["model"], "source": args.source,
                 "hedge_from_fallback": bool(fb),
+                "answer_hint": bool(args.answer_hint),
                 "raw_generation": text,
             }) + "\n")
             if (i + 1) % 100 == 0:
