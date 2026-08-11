@@ -4,3 +4,4 @@
 [gen] 200/3622  EM=0.050 hedge_acc=0.000 fallback=0.000 (66s, 0.33s/ex)
 [gen] 300/3622  EM=0.067 hedge_acc=0.000 fallback=0.000 (93s, 0.31s/ex)
 [gen] 400/3622  EM=0.065 hedge_acc=0.000 fallback=0.000 (130s, 0.32s/ex)
+[gen] 500/3622  EM=0.054 hedge_acc=0.000 fallback=0.000 (170s, 0.34s/ex)

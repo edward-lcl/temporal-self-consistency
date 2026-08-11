@@ -2,7 +2,9 @@
 
 *Draft. Results / Discussion / Conclusion written 2026-08-11 from the independent reimplementation; see `specs/CLAIMS-LEDGER.md` for per-claim evidence, controls and provenance pins.*
 
-*Section 1 has been revised to match the findings. **Section 3 (Methods) still describes the protocol as proposed** — it is accurate as a description of what was built and should stay that way, but §3.2's volatility taxonomy and §3.9's baseline list now need forward-references to the Section 4 findings that qualify them. **Section 2 (Related Work) is unrevised** and does not yet situate the paper against benchmark-auditing or verbalised-confidence literature, which is where it now belongs.*
+*Section 1 revised to match the findings. Section 2 extended with §§2.6–2.9 from a literature pass, which found prior art for three claims the draft was implicitly making; those claims are now stated at their true scope. Section 3 (Methods) still describes the protocol as proposed — accurate as a record of what was built — with forward-references added where Section 4 qualifies it.*
+
+*Outstanding: §§2.6–2.9 citations are recorded as titles and arXiv ids and need converting to the venue's format with full author lists; §2.9's benchmark-auditing references are under-specified pending the anonymised submissions being de-anonymised or replaced with published equivalents.*
 
 ---
 
