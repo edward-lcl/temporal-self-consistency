@@ -46,7 +46,9 @@ any of them move.
 ## Bottom line as of 2026-08-11
 
 **TCL's only surviving claim is that its gradient path is now connected. Every
-behavioural claim tested has failed replication.**
+behavioural claim tested has failed replication — but B8 turns the diagnosis
+constructive: the signal the method needs is already in the model, at AUROC 0.85,
+and the discrete hedge-token parameterisation is what discards it.**
 
 | claim | status |
 |---|---|
@@ -59,6 +61,7 @@ behavioural claim tested has failed replication.**
 | B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` (n=1) |
 | B6 / B7 — fine-tuning adds no knowledge, and causes entity interference | `SUPPORTED` |
 | B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
+| **B8 — the model's own logprobs predict its correctness at 0.85 where the hedge scheme is at chance** | **`SUPPORTED`** |
 
 Two independent reasons this setup could not have shown a TCL effect even if one
 exists, so the refutations above should not be read as "TCL cannot work":
@@ -75,6 +78,13 @@ The honest summary for the paper: the gradient bug was real and is fixed; the
 benchmark cannot detect whether fixing it helps; and on this data the model is
 doing template matching on both output channels. Demonstrating a TCL effect needs
 a different instrument, not more seeds.
+
+**And the paper does not have to end there.** B8 shows the per-example signal
+exists in the same model on the same examples at AUROC 0.85 — the discrete
+four-token scheme is what destroys it. That converts "this path is a dead end"
+into "here is the specific design choice that caused the dead end, and here is
+what to do instead." The negative results become the *evidence* for the positive
+recommendation rather than the conclusion.
 
 ---
 
@@ -361,6 +371,68 @@ why the Wikidata row is reported separately.
 Missing: seed replication; and the same breakdown for SFT-only, to check whether
 the interference is caused by TCL or by fine-tuning per se (D3 will supply the
 adapters for this).
+
+## B8. The signal the method needs is already in the model — the hedge scheme discards it
+**`SUPPORTED`** (n=1 seed, single model) — **this is the constructive finding**
+
+Same model, same 3,622 test examples, same correctness labels. Two confidence
+signals compared as predictors of *whether the model's own answer is right*:
+
+| confidence signal | overall AUROC | **within-relation AUROC** |
+|---|---|---|
+| hedge-token confidence (what TSCT trains) | 0.5300 | **0.4997** |
+| mean answer log-probability (free, already there) | 0.8406 | **0.8465** |
+| min answer log-probability | 0.8415 | **0.8485** |
+
+The trained four-token scheme is **at chance** within a relation (B5). The
+model's own token probabilities, which cost nothing and require no training,
+separate correct from incorrect answers at **~0.85**.
+
+**Not a length artifact.** Stratifying by exact answer-token count and pooling:
+
+| answer tokens | n | correct | AUROC |
+|---|---|---|---|
+| 3 | 139 | 18 | 0.8101 |
+| 4 | 288 | 21 | 0.6909 |
+| 5 | 443 | 18 | 0.7931 |
+| 6 | 641 | 16 | 0.8159 |
+| 7 | 677 | 14 | 0.9265 |
+| 8 | 680 | 3 | 0.9542 |
+| 9 | 272 | 5 | 0.8899 |
+
+Length-stratified pooled AUROC **0.8612** (n=3,140). High in every stratum.
+
+### Why this reframes the whole project
+
+The model **already knows what it does not know**, per example, at 0.85. The
+architecture then throws that away and replaces it with a 4-way discrete token
+whose value is a near-deterministic function of the relation type. Every negative
+result in section B follows from that one design choice:
+
+- nothing per-example to calibrate -> the loss cannot bite (B1, B2)
+- confidence constant within relation -> chance discrimination (B5)
+- confidence constant within relation -> ECE reduces to base-rate matching (B3)
+
+**The diagnosis is not "temporal calibration is impossible." It is "this
+parameterisation destroys the available signal."**
+
+### The constructive proposal that follows
+
+1. Replace the discrete hedge vocabulary with a **continuous confidence** derived
+   from (or trained against) the model's own answer distribution.
+2. Retarget the objective. Predicting *fact volatility* is a relation-level
+   template with no per-example variance. Predicting **"does this model know this
+   fact"** has real per-example variance and is what calibration means.
+3. Keep the hedge tokens only as a **presentation layer** over a calibrated
+   scalar, if discrete output is wanted for the interface — not as the thing the
+   loss operates on.
+
+Caveats: n=1 seed, one model, one dataset. Logprob-based confidence is
+established in the literature; the contribution here is not "logprobs work" but
+the **controlled, same-model, same-examples comparison showing the proposed
+method performs at chance where the freely available signal reaches 0.85.**
+Only 99 of 3,622 examples are positives, so the confidence interval is wide;
+replication across seeds and a second model is the obvious next step.
 
 ---
 

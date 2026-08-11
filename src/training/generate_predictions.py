@@ -213,7 +213,7 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
 
     cache = make_prompt_cache(model)
     logits = model(mx.array([prompt_ids]), cache=cache)[:, -1, :]
-    generated, hedge_tok = [], None
+    generated, hedge_tok, logprobs = [], None, []
 
     for _ in range(max_tokens):
         nxt = int(mx.argmax(logits, axis=-1).item())
@@ -222,6 +222,11 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
         if nxt in hedge_set:
             hedge_tok = HEDGE_TOKENS[hedge_ids.index(nxt)]
             break
+        # Log-probability the model assigned to the token it actually chose.
+        # This is the model's OWN uncertainty signal, independent of the hedge
+        # vocabulary -- the quantity the 4-token scheme discards.
+        lp = mx.log(mx.softmax(logits[0].astype(mx.float32), axis=-1)[nxt] + 1e-12)
+        logprobs.append(float(lp.item()))
         generated.append(nxt)
         logits = model(mx.array([[nxt]]), cache=cache)[:, -1, :]
 
@@ -231,7 +236,12 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
         hedge_tok = HEDGE_TOKENS[int(mx.argmax(hl).item())]
 
     text = hf_tok.decode(generated, skip_special_tokens=True).strip()
-    return text, hedge_tok, used_fallback
+    conf = {
+        "mean_logprob": (sum(logprobs) / len(logprobs)) if logprobs else None,
+        "min_logprob": min(logprobs) if logprobs else None,
+        "n_answer_tokens": len(logprobs),
+    }
+    return text, hedge_tok, used_fallback, conf
 
 
 def main():
@@ -272,7 +282,7 @@ def main():
 
     with open(out_path, "w") as f:
         for i, r in enumerate(rows):
-            text, hedge, fb = generate_one(
+            text, hedge, fb, conf = generate_one(
                 model, tokenizer, hedge_ids, r["question"], args.max_tokens,
                 answer_hint=args.answer_hint,
             )
@@ -302,6 +312,9 @@ def main():
                 "arm": arm, "adapter": str(args.adapter),
                 "model": cfg["model"], "source": args.source,
                 "hedge_from_fallback": bool(fb),
+                "mean_logprob": conf["mean_logprob"],
+                "min_logprob": conf["min_logprob"],
+                "n_answer_tokens": conf["n_answer_tokens"],
                 "answer_hint": bool(args.answer_hint),
                 "raw_generation": text,
             }) + "\n")
