@@ -52,6 +52,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 
 | claim | status |
 |---|---|
+| **F-2 — the question is ABSTENTION, not calibration: 61% precision at 1% coverage, 15.6x base rate** | **`ESTABLISHED`** (the positive direction) |
 | **F-1 — we REPAIRED the benchmark (current golds, no train overlap) and every pathology survived; two deepened** | **`ESTABLISHED`** (the real spine) |
 | A1 — the `argmax` bug severed the calibration gradient; the fix reconnects it | `ESTABLISHED` (4 seeds @0.5B, 3 @7B) |
 | A3 — padded-vocab models silently break hedge training | `ESTABLISHED` |
@@ -930,6 +931,83 @@ much more precise and more useful diagnosis than "the method failed."
 
 The scheme with the *least* per-example information can score *best* on the
 reported metric. That single row is the paper's argument.
+
+## F-2. The positive direction: the question is abstention, not calibration
+**`ESTABLISHED`** — _the answer to "what are we not saying?"_
+
+### What we were not saying
+
+Every measurement so far asks **"what confidence should the model state?"** That
+question presupposes there is something to be confident *about*. At 0.3–3.9%
+accuracy on post-cutoff volatile facts, there mostly is not. The deployment
+question is not what number to attach to a wrong CEO name — it is **whether to
+answer at all**.
+
+Reframed as selective prediction, the same signal that looked hopeless as a
+calibration target is immediately useful. Ranking by the model's own mean answer
+log-probability:
+
+| coverage | n kept | precision | risk |
+|---|---|---|---|
+| **1%** | 36 | **0.611** | 0.389 |
+| 2% | 72 | 0.431 | 0.569 |
+| 5% | 181 | 0.331 | 0.669 |
+| 10% | 362 | 0.213 | 0.787 |
+| 25% | 905 | 0.129 | 0.871 |
+| 100% | 3,622 | 0.039 | 0.961 |
+
+**15.6× the base rate at 1% coverage**, from a signal that is free and untrained.
+Compare B8's average precision of 3.3×, which looked weak — AP integrates over all
+coverage levels including the useless tail. The *head* of the ranking is where the
+value is, and selective-prediction metrics (risk–coverage, AURC, coverage at
+target risk) expose it where ECE and AP both obscured it.
+
+### Three things this reframes
+
+**1. `[UNKNOWN]` was the only correct answer, and it was untrainable.** At 96%
+risk the appropriate response to almost every test item is refusal, not a hedge.
+The taxonomy's own lowest level was the right one — and it has **zero training
+examples** (C1). The four-level design encodes a belief that post-cutoff volatile
+facts are *partially knowable*. They are not: accuracy is 0.3% against current
+truth. That is a claim about the world the taxonomy got wrong, not a data-collection
+oversight.
+
+**2. It inverts the paper's own Introduction.** §1 argues TSCT is preferable to
+RAG because it needs no retrieval. Our measurement says the opposite: internal
+knowledge at these horizons is ~4% and falls to ~0.3% against current truth, so
+**retrieval is not an alternative to calibration here, it is the only thing that
+can work.** The honest conclusion of a paper that set out to avoid retrieval is
+that its own data argues for retrieval.
+
+**3. It gives the internal confidence signal a real job.** Not *hedging* —
+**routing.** A confidence signal that reaches 61% precision at 1% coverage is a
+usable trigger for "answer from weights vs. retrieve," which is a decision with a
+measurable cost structure. That is what B8/B9's signal should drive.
+
+### The research direction this argues for
+
+> **Stop asking models to state calibrated confidence about facts they do not
+> have. Measure what they do have, and use it to decide when to go and get the
+> fact instead.**
+
+Concretely, and each of these is testable:
+- **selective prediction over calibration** for post-cutoff factual QA — report
+  risk–coverage, not ECE;
+- **abstention/routing as the trained output**, a binary with a cost structure,
+  not a four-way confidence vocabulary with hand-assigned scalars;
+- **horizon-dependent thresholds**, because B9 shows discrimination is
+  horizon-stable while level is not — so the routing threshold must move with
+  horizon even though the ranking does not;
+- **retrieval triggered by internal signal**, evaluated on retrieval cost saved
+  at fixed answer quality.
+
+### Why this is a positive result and not a dressed-up negative
+
+It is a measured operating point (61% precision at 1% coverage, 15.6× base rate),
+obtained from a signal that requires no training, on the exact examples where the
+proposed method is at chance. The negatives in sections A–C are what license it:
+they establish that the alternative does not work and *why*, so this is the
+direction the evidence leaves standing rather than one asserted alongside it.
 
 ## F-1. We repaired the benchmark. It got worse. This is the real spine.
 **`ESTABLISHED`** — _Edward asked the obvious question: why is "broken verifier" the
