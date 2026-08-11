@@ -876,6 +876,60 @@ much more precise and more useful diagnosis than "the method failed."
 The scheme with the *least* per-example information can score *best* on the
 reported metric. That single row is the paper's argument.
 
+## F5. Venue: there is a workshop that explicitly asks for this paper
+
+From the prior-art scan in `~/Projects/Algoverse-Bias-Steering/docs/PRIOR_ART_2026-08-07.md`
+(verified there 2026-08-07 — re-check CFPs before relying on it):
+
+| venue | deadline | format | negative-results language |
+|---|---|---|---|
+| **Interpretability for Discovery @ NeurIPS 2026** (Atlanta) | **Aug 29 AoE** | 5pp, non-archival, double-blind | **Explicit** — "Failure cases and negative results are welcome… careful studies of unsuccessful methods, misleading interpretations, failed validation." Named topic bucket; reviewers told to weigh reproducibility. |
+| Interpretability as a Science @ NeurIPS 2026 (Sydney) | Aug 28 | ≤5pp short / ≤9pp long, non-archival | No negative-results wording, but topics include *"falsifiability and experimental designs that distinguish mechanisms from artifacts"* and *"measurement validity… and evaluation design."* |
+
+**Interp4Discovery's call is a description of this paper.** We have a careful
+study of an unsuccessful method, a misleading interpretation traced to its cause
+(the reported +0.4350), a failed validation, and reproducibility artifacts
+(pinned dataset/model/commit revisions, released harness, raw per-example
+predictions). The second venue also fits — B3/F1 *is* measurement validity and
+distinguishing mechanism from artifact.
+
+Three consequences:
+
+1. **The deadline is Aug 29, not Aug 20.** Kiran's close-out is a team milestone,
+   not the submission date. There is more runway than assumed.
+2. **5 pages.** The current draft is ~7,700 words, far over. The compression
+   target should be chosen now, because it determines what survives: F1 (the ECE
+   validity condition) and B9 (the discrimination/level decomposition) are the
+   two results that earn space. A1/A3 are a strong appendix.
+3. **Mutual exclusion applies to a submission, not an author** — Interp-as-Science
+   bars a paper under review at another NeurIPS workshop. Two different papers to
+   the two venues is fine, but confirm before relying on it, since Edward is on
+   both projects and the bias-steering team has already committed to
+   Interp-as-Science for Aug 28.
+
+## F6. Our model set is a reviewer liability, and there are two free controls
+
+The same repo's `MODEL_SET_2026-08-07.md` makes a point that transfers directly:
+*"The 2025 set (Qwen1.5, Llama-2, gemma-1, Yi-6B) is 2023–24 vintage and is a
+reviewer liability on its own."* **Qwen2.5-7B is exactly that vintage**, which
+vindicates Edward's instinct that our models are old.
+
+That document also identifies two controlled contrasts we could run nearly free,
+having verified the configs:
+
+1. **`Qwen3.5-27B` vs `Qwen3.6-27B`** — verified byte-identical architecture (64
+   layers, 5120 d_model, 24/4 heads, 17408 d_ff, vocab 248320, 27.8B). They differ
+   **only in post-training.** For us that asks: *does the internal confidence
+   signal (B8/B9) move under re-alignment with architecture held exactly fixed?*
+   Nothing in the Section 2.6 literature answers that.
+2. **`gemma-4-31B-it` (dense) vs `gemma-4-26B-A4B-it` (MoE)** — same family,
+   recipe, tokenizer and release date. **Both are already on this machine**, so
+   this contrast costs only inference time.
+
+The second is runnable today. The first needs `Qwen3.5-27B` and `Qwen3.6-27B`
+stock weights, which we do not have (the local 27Bs are an abliteration and a
+distill, neither admissible as a controlled arm).
+
 ## F4. How to do this correctly — the recommendations that follow
 
 1. **Report constant-policy and oracle controls with every ECE number.** Without
