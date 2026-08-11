@@ -67,6 +67,8 @@ and the discrete hedge-token parameterisation is what discards it.**
 | **C9 — the benchmark INVERTS model quality: a 2026 model is 9x more current and scores half as well** | **`ESTABLISHED`** (sharpest form of C5) |
 | **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
 | C8 — `exact_match` is a mild floor; the obvious relaxation enriches for name collisions | `ESTABLISHED` |
+| **B10 — 0 of 3 single-seed TSCT behavioural claims survived replication** | **`ESTABLISHED`** (methodological) |
+| **B11 — abstention is regime-dependent; the router's job is regime detection** | **`ESTABLISHED`** |
 | **B9 — ranking is horizon-stable (0.80-0.90); the LEVEL carries no dependable horizon information** | **`ESTABLISHED`** at n=2 (level direction flips between seeds) |
 | **B8 — the model's own logprobs predict its correctness at 0.84 where the hedge scheme is at chance** | **`SUPPORTED`, qualified** (z=13.6 but AP only 3.3x baseline; 35% of positives are train-seen) |
 
@@ -638,6 +640,53 @@ cannot be trusted to supply it in any form. The ranking, which is stable at
 
 Missing: a third horizon bucket, which this split cannot supply since every test
 row is 2023 or 2024; and the same decomposition on a 2026-vintage model.
+
+## B10. Zero of three single-seed TSCT behavioural claims survived replication
+**`ESTABLISHED`** — a methodological finding, not only a result about TCL
+
+Every behavioural effect attributed to the calibration loss was first observed at
+one seed and then tested at a second:
+
+| claim | at seed 0 | on replication |
+|---|---|---|
+| A2 — the fix prevents hedge collapse | holds | **seed 3 inverts** (fixed arm collapses to `[CONFIDENT]`, broken arm does not) |
+| B2 — TCL shifts error direction | −0.186 mean signed conf error | **seed 1: −0.002**, effect gone, over-confident errors up 3% |
+| B9 — TCL corrects the horizon level direction | −0.046 (correct direction) | **seed 1: +0.045**, same magnitude, opposite sign |
+
+**Survived: 0 of 3.**
+
+By contrast, everything that replicated is a property of the *graph* or of the
+*base model*, not of training: the gradient-connectivity result (A1, exact 0 vs
+never 0, 4 seeds at 0.5B and 3 at 7B) and the discrimination of internal
+confidence (0.7975–0.9037 across four arm/seed combinations and both horizons).
+
+The generalisable form: **in this setup, single-seed behavioural differences
+between training arms are noise at a rate indistinguishable from 100%, while
+mechanism-level and base-model properties replicate exactly.** Anyone reporting a
+behavioural effect from a calibration-loss ablation at n=1 — which is what the
+original project did, and what we did three times before catching it — is
+reporting seed variance. This is cheap to state and cheap to check, and it is a
+concrete argument for a seed floor in ablation studies of this kind.
+
+## B11. Abstention is regime-dependent, which is what the router must detect
+**`ESTABLISHED`**
+
+Risk–coverage only helps where accuracy is low:
+
+| set | n | accuracy | what abstention buys |
+|---|---|---|---|
+| temporal-delta test (volatile) | 3,622 | 0.039 (0.006 vs current truth) | **everything** — 61% precision at 1% coverage, 15.6× |
+| stress_stable (immutable) | 49 | **0.878** | **nothing** — the base rate is already high, so answering everything is near-optimal |
+
+The two regimes demand opposite policies: answer freely on stable facts, abstain
+on almost everything volatile and answer only the top percentile. **So the
+router's first job is not to score confidence but to detect which regime it is
+in** — and that is a per-item judgement, since a single document mixes both.
+
+This is precisely what `stress_mixed_paragraphs.jsonl` (60 passages combining
+stable and volatile claims) was constructed to test, and it has never been run.
+It is now the highest-value unrun experiment in the project: it is the only
+artifact that puts both regimes inside one input, which is the deployment shape.
 
 ---
 

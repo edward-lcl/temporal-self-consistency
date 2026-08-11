@@ -1,0 +1,11 @@
+[gen] 3622 examples | source=temporal-delta:test | arm=base | adapter=None
+[gen] 100/3622  EM=0.130 hedge_acc=0.990 fallback=1.000 (9s, 0.09s/ex)
+[gen] 200/3622  EM=0.080 hedge_acc=0.985 fallback=1.000 (17s, 0.09s/ex)
+[gen] 300/3622  EM=0.113 hedge_acc=0.980 fallback=1.000 (26s, 0.09s/ex)
+[gen] 400/3622  EM=0.095 hedge_acc=0.975 fallback=1.000 (35s, 0.09s/ex)
+[gen] 500/3622  EM=0.078 hedge_acc=0.976 fallback=1.000 (45s, 0.09s/ex)
+[gen] 600/3622  EM=0.065 hedge_acc=0.980 fallback=1.000 (55s, 0.09s/ex)
+[gen] 700/3622  EM=0.061 hedge_acc=0.980 fallback=1.000 (64s, 0.09s/ex)
+[gen] 800/3622  EM=0.054 hedge_acc=0.978 fallback=1.000 (73s, 0.09s/ex)
+[gen] 900/3622  EM=0.048 hedge_acc=0.978 fallback=1.000 (82s, 0.09s/ex)
+[gen] 1000/3622  EM=0.043 hedge_acc=0.977 fallback=1.000 (92s, 0.09s/ex)
