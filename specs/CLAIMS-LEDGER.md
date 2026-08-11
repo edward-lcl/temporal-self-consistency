@@ -58,7 +58,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | B1 — TCL reduces ECE | `REFUTED` (0.0046) |
 | B2 — TCL shifts error direction | `REFUTED` (holds seed 0, gone seed 1) |
 | B5 — the hedge output discriminates per example | `REFUTED` (within-relation AUROC 0.500) |
-| B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` (n=1) |
+| B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` at n=2 (our SFT is 0.4552/0.4551, not 0.85) |
 | B6 / B7 — fine-tuning adds no knowledge, and causes entity interference | `SUPPORTED` |
 | B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
 | **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
@@ -232,7 +232,38 @@ controls reported alongside it.** A reviewer who runs this sinks any ECE-based
 claim in the paper.
 
 ## B4. The Doc's reported +0.4350 ECE reduction is a broken-baseline artifact
-**`CONTESTED`** (our evidence conflicts with the Doc's Discussion; n=1 seed)
+**`CONTESTED`, now at n=2** — our SFT baseline is stable and nowhere near theirs
+
+Replicated across two seeds, paired:
+
+| seed | SFT ECE | TSCT ECE | TSCT − SFT |
+|---|---|---|---|
+| 0 | 0.4552 | 0.4506 | **−0.0045** |
+| 1 | 0.4551 | 0.4572 | **+0.0021** |
+
+Two things this settles. The TCL effect is within ±0.005 and **flips sign**
+between seeds — it is noise. And our SFT baseline is **extremely stable**
+(0.4552, 0.4551) at a value nowhere near the 0.85 the Doc reports.
+
+Against the B3 control table, the Doc's pair sits almost exactly on two
+capability-free constants:
+
+| | Doc / Slack | nearest constant control |
+|---|---|---|
+| SFT | 0.85 | always-`[CONFIDENT]` = 0.9227 |
+| TSCT | 0.42 | always-`[TEMPORAL_HEDGE]` = 0.4227 |
+
+A model collapsed to `[CONFIDENT]` — which `docs/STATUS.md` says all six original
+checkpoints were — would score ~0.87. Our SFT does not collapse and scores 0.455
+twice.
+
+Remaining confounds (why this stays `CONTESTED` rather than `ESTABLISHED`):
+different base model (Qwen2.5-7B vs LLaMA-3 8B), our reimplemented loss with
+inferred formulas, and no access to their checkpoints or training config. Those
+cannot be closed from our side. What *is* now settled is that a correctly-trained
+SFT baseline on this task does not score 0.85, and that the reported effect is
+the size of the gap between two constant policies rather than the contribution of
+a calibration loss.
 
 Slack table: temporal_delta **TSCT 0.42 vs SFT 0.85**, `ECE_reduction=+0.4350,
 p=0.0099`.
