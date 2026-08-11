@@ -1,0 +1,9 @@
+[mlx] loaded 8008 raw examples
+
+[mlx] === condition: fixed ===
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 52283.57it/s]
+[mlx] hedge ids (no resize): [151665, 151666, 151667, 151668]
+[mlx] adapted output projection: lm_head (untied)
+Trainable parameters: 0.168% (12.780M/7615.617M)
+[mlx] 8008 examples after tokenisation (max_len=128)
+[mlx] hedge-head check: logit spread=0.000000 contrast_grad_norm=1166.620605

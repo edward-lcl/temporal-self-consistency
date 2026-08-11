@@ -310,6 +310,49 @@ on fabrication.**
 Measurement gap: "recited a former officeholder" and "invented a person" score
 identically under EM, though they are different epistemic states.
 
+## C5. The test split's gold answers are expired values — the label is stale, not the model
+**`ESTABLISHED`** (the structural fact) / **`UNCERTIFIED`** (what fraction are wrong in reality)
+
+Structural fact, from the dataset alone:
+- Every test row carries `t_end` of **2023 (1,582)** or **2024 (2,040)**. Not one has
+  an open-ended or current value.
+- **91.3% of test rows (3,306/3,622) are orphans**: the gold is the last value the
+  dataset records for that entity+property, and the dataset itself says that value
+  *ended*, with no successor recorded.
+
+So the question is asked in the present tense ("Who is the CEO of X?") while the
+gold answer is one the dataset marks as no longer true. Spot checks against known
+reality:
+
+| question | gold | base model | actual |
+|---|---|---|---|
+| CEO of YouTube LLC | Susan Wojcicki | Neal Mohan | Mohan since Feb 2023 — **model correct, scored wrong** |
+| Chair of News Corporation | Rupert Murdoch | Lachlan Murdoch | Lachlan since Nov 2023 — **model correct, scored wrong** |
+
+**This inverts the paper's premise.** TSCT assumes the model's knowledge is stale
+relative to the world, so it should hedge. On this test set the *label* is stale
+relative to the model, and answering correctly is penalised. Qwen2.5's ~2024
+cutoff postdates many of these changes, so it often knows the successor — and is
+marked wrong for it.
+
+It also explains the otherwise baffling 2.7% accuracy. That number is not "the
+model does not know post-cutoff facts." It is closer to "the model knows the
+current fact and the label wants the previous one."
+
+**Contaminates:** every accuracy figure in this ledger — B6/D1, the C3 three-way
+rescore, and the EM inputs to every ECE number in B1/B3. ECE is affected doubly,
+since `correct` feeds it directly.
+
+What is `UNCERTIFIED`: what fraction of the 3,306 orphans have a gold that is
+actually wrong today. Establishing that needs external ground truth (live Wikidata
+at a pinned date), not the frozen snapshot. The two spot checks above are
+existence proofs, not a rate.
+
+**Do not report any accuracy or ECE number from this test split until this is
+resolved.** If it holds at scale, the benchmark needs relabelling against a dated
+snapshot before it can support any claim — and that is a finding about the
+dataset worth reporting in its own right.
+
 ## C4. Contamination has not been audited for *our* base model
 **`UNCERTIFIED`**
 
@@ -328,6 +371,7 @@ suggests it does not know the post-change values. Not a substitute for an audit.
 | D3 | Does B4 survive seeds? | Most consequential, least replicated claim here. | ~3.6 h |
 | D4 | What is in the 86% "neither" bucket? | Distinguishes "no knowledge" from "corrupted knowledge". Mechanistic. | ~1 h |
 | D5 | Does TCL help on a **volatility-balanced** held-out set? | Every held-out measurement so far is on a set where one class is 90.8%. | needs a new split |
+| D8 | **Verify C5 at scale against live Wikidata** | C5 says 91.3% of test golds are values the dataset marks as expired; two spot checks show the model penalised for being *more* current. If that rate is high, every accuracy and ECE number here is invalid and the benchmark needs relabelling against a dated snapshot. This is now the highest-priority open item — it gates everything downstream. | ~2 h, needs Wikidata API |
 | D6 | **Does within-relation discrimination ever exceed 0.5?** (Edward, 2026-08-11) | B5 says our model is a relation→hedge lookup table. The sharp question is whether *any* model does better, or whether this task is only ever solvable by template matching. This is the pattern-matching-vs-reasoning question made measurable, and B5 gives it a clean threshold: within-relation AUROC > 0.5. | see D7 |
 | D7 | **Temporal sweep across model generations** (Edward, 2026-08-11) | Hold parameter count fixed (~7-8B) and vary release date: a 2024, an early-2025, a mid-2025, and a mid-2026 model. Two questions at once — (a) does within-relation discrimination (D6) improve with generation, and (b) does the knowledge-cutoff boundary itself move, which changes which facts are "post-cutoff" per model and is a confound for every result in this ledger. Note the cheap version needs **no training**: zero-shot answer accuracy per generation already tests (b), and D1's harness covers it. | high — several model downloads (37GB free) + eval per model; the zero-shot half is much cheaper |
 
