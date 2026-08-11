@@ -357,7 +357,18 @@ Bucketing by the year each fact changed separates two properties that are usuall
 
 The untuned model is **more confident on the facts it is worse at**: accuracy falls from 0.0487 to 0.0319 as changes approach the present while mean log-probability *rises* (≈4 SE). Yet within each bucket the same signal ranks correctness at 0.865 and 0.904.
 
-So **discrimination is horizon-stable and level is not.** "Read the log-probabilities" is therefore insufficient advice: a system built that way ranks its uncertain answers correctly and still asserts the wrong absolute confidence on the newest facts — the exact failure temporal calibration exists to prevent.
+Replicating at a second seed shows the level is not merely inverted but *arbitrary*:
+
+| arm | 2023 logprob | 2024 logprob | level shift | AUROC 2023 | AUROC 2024 |
+|---|---|---|---|---|---|
+| base (untuned) | −0.7852 | −0.7310 | **+0.0542 backwards** | 0.8649 | 0.9037 |
+| TSCT seed 0 | −0.6089 | −0.6552 | −0.0463 correct | 0.8348 | 0.8302 |
+| **TSCT seed 1** | −0.6642 | −0.6196 | **+0.0447 backwards** | 0.8466 | 0.7975 |
+| SFT seed 1 | −0.6578 | −0.6639 | −0.0061 (≈0) | 0.8335 | 0.8893 |
+
+TSCT's level direction flips sign between seeds at comparable magnitude — the third behavioural effect attributed to TCL to invert on replication, after the collapse result (Section 4.2) and the error-asymmetry result. Discrimination meanwhile is stable across every arm, seed and horizon at 0.7975–0.9037.
+
+So **the ranking is horizon-stable and the level carries no dependable horizon information at all.** "Read the log-probabilities" is therefore insufficient advice. Were the level merely inverted one could negate it; being arbitrary, it must be **fitted externally against realised accuracy per horizon**. The ranking is the only part that can be read off the model for free.
 
 ### 4.11 There is a usable operating point, and it is abstention
 

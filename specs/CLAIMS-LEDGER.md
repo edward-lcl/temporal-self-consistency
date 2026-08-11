@@ -66,7 +66,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | **C9 — the benchmark INVERTS model quality: a 2026 model is 9x more current and scores half as well** | **`ESTABLISHED`** (sharpest form of C5) |
 | **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
 | C8 — `exact_match` is a mild floor; the obvious relaxation enriches for name collisions | `ESTABLISHED` |
-| **B9 — internal confidence ranks correctness at every horizon but its LEVEL is anti-calibrated to horizon** | **`SUPPORTED`** (the gap the literature has not closed) |
+| **B9 — ranking is horizon-stable (0.80-0.90); the LEVEL carries no dependable horizon information** | **`ESTABLISHED`** at n=2 (level direction flips between seeds) |
 | **B8 — the model's own logprobs predict its correctness at 0.84 where the hedge scheme is at chance** | **`SUPPORTED`, qualified** (z=13.6 but AP only 3.3x baseline; 35% of positives are train-seen) |
 
 Two independent reasons this setup could not have shown a TCL effect even if one
@@ -601,14 +601,42 @@ does not supply it and gets its direction wrong. That is a concrete, testable
 proposal, it is not what TSCT does, and it is not what the verbalised-confidence
 literature currently recommends.
 
-Note TSCT's level moves in the *correct* direction (−0.6089 → −0.6552) where
-base moves backwards. This is the only measurement in this ledger where the
-trained arm looks better than base on something, and at n=1 seed it is not a
-claim — but it is the one place worth spending a seed to check.
+### Replication (seed 1) — the level direction is seed noise, the ranking is not
 
-Missing: seed replication (the seed-1 adapters exist and this probe is ~15 min
-each); a third horizon bucket, which this split cannot supply since every test
-row is 2023 or 2024; and the same decomposition on a newer model.
+Flagged at seed 0 that TSCT's level moved in the *correct* direction where base
+moved backwards, and that it was the one place worth spending a seed. Spent:
+
+| arm | 2023 logprob | 2024 logprob | **level shift** | AUROC 2023 | AUROC 2024 |
+|---|---|---|---|---|---|
+| base (untuned) | −0.7852 | −0.7310 | **+0.0542 backwards** | 0.8649 | 0.9037 |
+| TSCT seed 0 | −0.6089 | −0.6552 | **−0.0463 correct** | 0.8348 | 0.8302 |
+| **TSCT seed 1** | −0.6642 | −0.6196 | **+0.0447 backwards** | 0.8466 | 0.7975 |
+| SFT seed 1 | −0.6578 | −0.6639 | −0.0061 (≈0) | 0.8335 | 0.8893 |
+
+**TSCT's level direction flips between seeds** (−0.0463 → +0.0447), of comparable
+magnitude and opposite sign. This is the **third** single-seed TSCT behavioural
+result to invert on replication, after A2 (collapse) and B2 (error asymmetry).
+That consistency is itself worth stating: *every* behavioural effect attributed
+to TCL so far has been seed noise.
+
+**Discrimination, by contrast, is stable everywhere**: 0.7975–0.9037 across four
+arm/seed combinations and both horizons.
+
+### The claim, restated more strongly
+
+The original wording — "level is anti-calibrated to horizon" — was too kind. The
+level is not reliably *anything* with respect to horizon: backwards for the
+untuned model, and sign-unstable across seeds for the trained ones. **The level
+carries no dependable horizon information at all.**
+
+That strengthens rather than weakens the design consequence. If the level were
+merely inverted, one could negate it. Since it is arbitrary, a routing threshold
+**must be fitted externally against realised accuracy per horizon** — the model
+cannot be trusted to supply it in any form. The ranking, which is stable at
+0.80–0.90, is the only part that can be read off the model for free.
+
+Missing: a third horizon bucket, which this split cannot supply since every test
+row is 2023 or 2024; and the same decomposition on a 2026-vintage model.
 
 ---
 
