@@ -1,6 +1,8 @@
 # Temporal Self-Consistency Training for Reasoning Under Evolving World Knowledge
 
-*Draft. Results / Discussion / Conclusion written 2026-08-11 from the independent reimplementation; see `specs/CLAIMS-LEDGER.md` for per-claim evidence, controls and provenance pins. **Sections 1–3 still describe the originally proposed framing and now under-state the negative findings — they need revision to match Sections 4–6.***
+*Draft. Results / Discussion / Conclusion written 2026-08-11 from the independent reimplementation; see `specs/CLAIMS-LEDGER.md` for per-claim evidence, controls and provenance pins.*
+
+*Section 1 has been revised to match the findings. **Section 3 (Methods) still describes the protocol as proposed** — it is accurate as a description of what was built and should stay that way, but §3.2's volatility taxonomy and §3.9's baseline list now need forward-references to the Section 4 findings that qualify them. **Section 2 (Related Work) is unrevised** and does not yet situate the paper against benchmark-auditing or verbalised-confidence literature, which is where it now belongs.*
 
 ---
 
@@ -30,14 +32,21 @@ We argue that temporal calibration must be a *native model capability*, not an e
 3. Flag time-volatile facts as potentially outdated ("The CEO of X is Y, but this may have changed.")
 4. Decline confidently when a fact is genuinely beyond reliable knowledge ("I cannot reliably answer who currently holds this position.")
 
-We introduce **Temporal Self-Consistency Training (TSCT)**, a fine-tuning methodology that teaches a language model to natively distinguish time-volatility classes and emit appropriately calibrated hedges, without requiring retrieval at inference time. Our contributions are:
+This paper implements that idea and reports that it does not work — together with an account of why, which we believe is the more useful result.
 
-- **TemporalDelta**: a contrastive temporal dataset constructed from 11 Wikidata properties spanning fast- and slow-changing fact categories, plus integration of PAT-Questions for additional contrastive supervision. The dataset is labeled with validity intervals and a four-token hedge taxonomy.
-- **Temporal Calibration Loss (TCL)**: a novel loss function that augments standard cross-entropy with three additional terms — overconfidence penalty, underconfidence penalty, and hedge quality reward — applied selectively to time-sensitive examples.
-- **Hedge token vocabulary**: four discrete hedge tokens (`[CONFIDENT]`, `[COND_CONFIDENT]`, `[TEMPORAL_HEDGE]`, `[UNKNOWN]`) appended to the model's output, enabling structured uncertainty expression and direct ECE measurement.
-- **An empirical evaluation framework** comparing TSCT to seven baselines (including the proposed hypothesis that TCL outperforms label smoothing, temperature scaling, RAG, and SFT-only alternatives) using post-cutoff benchmarks (FreshQA, PAT-Questions 2024, TLQA, TDBench) and a contamination-audited Wikidata test set.
+We build **Temporal Self-Consistency Training (TSCT)**: a four-token hedge vocabulary appended to the model's output, trained with a **Temporal Calibration Loss (TCL)** that augments cross-entropy with asymmetric over- and under-confidence penalties and an anti-collapse regulariser, applied selectively to time-sensitive examples. We evaluate it on **TemporalDelta**, a contrastive dataset built from 11 Wikidata properties and labelled with validity intervals and the hedge taxonomy.
 
-Our research question is: *Can a language model be trained to reliably distinguish time-stable from time-volatile factual claims and express calibrated uncertainty about the latter, without access to external retrieval at inference time?*
+Our research question was: *Can a language model be trained to reliably distinguish time-stable from time-volatile factual claims and express calibrated uncertainty about the latter, without access to external retrieval at inference time?*
+
+The answer we arrive at is that **this experimental design cannot answer that question**, and that a family of related designs share the defect. Our contributions are therefore diagnostic and methodological rather than a new method:
+
+- **A real defect in the loss, and its correction.** TCL computed its confidence estimate through a non-differentiable `argmax`, so the calibration terms received exactly zero gradient at every step while cross-entropy trained normally — which is why the resulting checkpoints looked plausible and were not. A softmax expectation restores it. We verify this by direct gradient measurement rather than inference from loss curves (Section 4.2).
+- **A null result, with its cause.** With the gradient restored, TCL moves ECE by less than 0.005 against a matched cross-entropy baseline and the sign flips between seeds. We show this was structurally guaranteed: the benchmark is saturated at the oracle, and the learned hedge output has no per-example variance to calibrate (Sections 4.3–4.5).
+- **A condition for when ECE is a valid measure of a hedging scheme.** A constant confidence output, ignoring the input entirely, beats a *perfect* volatility classifier sixfold on this benchmark. We state and demonstrate the general condition — that ECE rewards a scheme only insofar as its asserted confidences sit near the realised accuracies of the classes they label — and show both regimes, valid and inverted, within one evaluation (Section 5.2).
+- **An audit of the evaluation apparatus**, finding that 98.7% of gold answers are expired, 29.2% of test questions appear in training with a different answer, and one of the four hedge tokens never appears in the data at all (Section 4.7).
+- **Evidence that the signal was already present.** The model's own answer log-probabilities predict its correctness at AUROC 0.85 on exactly the examples where the trained hedge output is at chance — and the *untuned* model's signal is stronger than the fine-tuned one's. The representation, not the optimiser, sets the ceiling (Section 5.3).
+
+We release the reimplemented training and evaluation harness, the trained adapters, raw per-example predictions, and a per-claim evidence ledger recording what each result can and cannot support.
 
 ---
 
@@ -79,6 +88,8 @@ We extend the base LLaMA-3 8B tokenizer with four special hedge tokens that the 
 | `[COND_CONFIDENT]` | 0.75 | Slow-changing facts (capitals, organizational structures) |
 | `[TEMPORAL_HEDGE]` | 0.45 | Fast-changing facts likely affected by knowledge cutoff |
 | `[UNKNOWN]` | 0.10 | Facts genuinely beyond the model's reliable knowledge horizon |
+
+*These four scalars are assigned a priori and are never fitted to observed accuracy. Section 5.2 shows this is the design decision that determines whether ECE is a valid measure of the resulting scheme: on our volatile test split the asserted values exceed realised accuracy by more than 17×, and the metric inverts. Section 4.7 further notes that `[UNKNOWN]` appears zero times in the training, validation or test data, so the model cannot learn to emit it.*
 
 At training time, the softmax probability of the emitted hedge token serves as the differentiable confidence signal (preserving gradient flow into the calibration loss). At evaluation time, hedge tokens are deterministically mapped to fixed scalar confidence values for ECE computation. This dual representation is critical: training requires soft probabilities to enable gradient updates, but evaluation requires fixed mappings to ensure reproducibility across model checkpoints.
 
@@ -151,6 +162,13 @@ We compute the following metrics for each model condition:
 6. **Temporal generalization gap**: ECE and accuracy bucketed into 12-month windows by distance from training cutoff, measuring how performance degrades with horizon.
 
 We also conduct three stress tests: (i) extended horizon evaluation on facts 18–36 months post-cutoff; (ii) adversarial stable-facts evaluation measuring over-hedging on 49 curated immutable facts; (iii) mixed-paragraph evaluation on 60 passages containing both stable and volatile claims, measuring selective rather than blanket hedging.
+
+**Validity controls (added after the fact).** The framework above was specified before any results existed and, as specified, cannot distinguish a calibrated model from a well-chosen constant. Section 4.4 shows why this matters: on the primary test split a constant confidence output beats a perfect volatility classifier sixfold. We therefore add two controls and report them beside every ECE value:
+
+7. **Reference (oracle) run**: emit the *gold* hedge on every example. This establishes the best score any classifier of this taxonomy could obtain, and hence whether headroom exists at all.
+8. **Empty-solution controls**: emit each of the four hedge tokens as a constant, ignoring the input. Any method that fails to beat the best constant has not demonstrated capability, whatever its absolute ECE.
+
+We additionally report **discrimination separately from calibration** — AUROC and average precision of asserted confidence against answer correctness — because a constant policy is at chance on discrimination by construction while scoring well on ECE, and because AUROC alone flatters the rare-positive regime this benchmark occupies.
 
 ### 3.9 Baselines
 
