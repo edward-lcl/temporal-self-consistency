@@ -1,0 +1,103 @@
+Okay, we analyzed this with our OpenClaw agent. It made a change log and some other stuff from its analysis, so we should catch up on that. Before our credits run out, before the end of today, we should kick off the experiments so we can continue re-verifying them, because all that takes time.
+
+---
+
+should we be covering other open models as well. all of these are relatively small. the qwen 27b series is like optimal for daily driver for a lot of ppl so i think thats prob fair, not sure. ill leave it up to u
+
+---
+
+so what are we running give me a full rundown so i am updated and informed
+
+---
+
+hows it going. anything in particular u should explain?
+
+---
+
+Sure, we could run the next natural steps as you suggest. But, like, what this makes me think is that we we did, like, the first, like, experiments for, like, what they were saying the paper is about, but, like, if they never run it, they can't really make those claims. And how I see it is, like, the OODA loop. So, like, we would observe new things as we run more tests, and then we would orientate differently, decide differently, and act and do different things. So... based on this information now. I wonder if there's a different direction and a different layer to go deeper with it. But the thing is I also don't want to, like, take this whole project into a whole different direction because, like, this is a paper that this coup points to do, and it's a pretty big group. So I feel like we shouldn't really be straying too much. But, um, it's an interesting place to be. So I'll I'll let you decide, like, where we go from here.
+
+---
+
+Well, I joined this whole project with the goal of getting out of first draft and a poster draft. So, um, I think that's completely fine. Um, having it end up like that, and the numbers be different because it's real accurate and as a meaningful paper, it could survive scrutiny. And then we could also do, like, a artefact to support that of, like, everything that is, like, our our independent analysis and verification process as well as, like, what it took to bridge to get the gaps. And so we should be updating our changed login everything as we go so we keep track of everything. Um, but I agree with this. So, yeah, let's start on the generation script and look through all of this. Um, Yeah. I I very much agree.
+
+---
+
+Yeah. Sure. We could continue with what you suggested. But what this made me think about was, like, is the the most important question is always the one that's always the unknown, the unknown of the unknown. Like, we we don't know what the right question to be asking is. I mean, we we could land on it. Um, but I guess I'm really trying to say as well is, like, We're missing epistemic gardening. Like, there... there's other gaps to be filled and, like, to know, like, what data fields are missing so we could work towards again those field. Um, that would actually keep moving the needle and, like, identifying, like, real mechanistic claims that move the needle or, like, the the the items that, you know, expand on this usage that actually strengthen the claims and actually, you know, like, we pull on the thirds of the reviewers with pull and you know how, like, really good the scientific packing to really say, like, okay. This is why we believe what we believe, and this is, like, the project. Um, because, yeah, it... the model is it's, like, a mean confidence, but, like, it's right very little. Like, on barely three percent. So...
+
+---
+
+@"/Users/edward/.claude/uploads/c52b8f3b-af21-4236-9f6e-3be7fe3f4668/5c820d84-tb35.pdf" https://tb3-hard.exe.xyz/ it also made me think of this project and the adjudication process to see where along the process it fails. like it could be a failure in dataset,  i mean it could be a problem with the task itself. idk my mind also went to we need a good way to verify externally as well but thats just me thinking 1000mph. we can start the Ledger and build it out
+
+---
+
+but even if discrimination improves as models get bigger and they improve, how would we test if its pattern matching vs reasoning. I feel like we are approaching this correct with an old model so I think a 2024 or early 2025model and a maybe mid 2025 modle and then a mid 2026 model would work well with same parameter size and u know test and very these thing and see how they are as time progressed and models changes so temporal across models as well but random thoguht. I dint want ti drift tho. we can proceed with the plan
+
+---
+
+https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models well anthropic is also coming out woth this so yes we are seeing that the harness is bloated bc as we add these neural layers we dont have to repeat ourselves which is interesting for iterations bc everything changes. yes we can proceed
+
+---
+
+keep working and why not push it? idk if they added us as a contributor ti the main repo yet
+
+---
+
+sure lets get it all hooked up si we are unblocked
+
+---
+
+ok so now im trying to understand where we are situated in terms of paper writing and running experiments. are we still deep in the weed of experiments and finding what results would make a meaningful paper?
+
+---
+
+I guess we have the negative result but qe have no way to spin this positive? like I was thinking if we suggested the better direction to take instead of jist saying this path is a dead end
+
+---
+
+so did this give us more threads to pull then
+
+---
+
+Okay. But these things, they're changing my zero point zero zero five. Like, that's so small. Like, that doesn't seem like significantly relevant at all. Like, I feel like this paper just doesn't feel like it would do well, and that's why we need, like, the best possible framing or even look for, like, the alternative methods to the approach rather than what we set out to do. Um, maybe, like, these are the actual, like, past to be going down. Uh, if you want to do this correctly... because then this paper could still be cited on everything as well, and it is a meaningful paper for the space. Yeah. We could address the one book on items still. Oh, open item. Yeah. Okay. This is really, really good so far, though. Let's keep working.
+
+---
+
+Yeah, let's start that and work through all of them. Yeah, let's do it.
+
+---
+
+If they are contradicting, now we have to dig deeper and investigate, really figuring out the best framing for the paper so it could get accepted at the new IPS workshop. I don't know, but that is a conversation to be had. We probably have to make the artifact of everything changed, our verification process independently, and everything that we've done by ourselves, so that the team could actually be on the same page as us.
+
+We should do the revisions. Also, I'm wondering: should we do a pangram pass on it so we could improve the writing? We could go into the user input text and actually pull from the voice files that I used, and the Slack and whatever team meetings that they had, so we could actually get the actual voice.
+
+Or maybe test it against what they have in the Google Doc, preserve what we could. I don't know. Also, I'm thinking these models are pretty old, they're about a year and a half old. I'm wondering if we should test more recent, up-to-date models, like bigger models. Qwen 3.6, 27B, something like that. I don't know.
+
+---
+
+Okay, we should do in-depth research passes to get all the relevant documents, as well as the links and stuff that I referenced to you that you think will help as well. Maybe include all that in "related works" as well. I would say that we need to do a pangram pass as well over the text and paper. We use pangram in TB archive. You should look at that. We just search for "pangram," and you can see what system we had built for that. I thought that we did have, look at the models that we do have already in OMLX and already on the system, because maybe we could use something that's already here.
+
+---
+
+Yeah, I would say we could delete the 27 bill Claude Opus Distilled 3.5. We could use Gemma, as you suggested. I think the A4B was actually better from all the past testing. You could compare both of them.
+
+Maybe if we delete Qwen 3.5, we could do download Qwen 3.6 27B. I'm also just waiting for Qwen 3.8 to come out, which should be this week sometime, but I don't know. I authorized real web searches for all the related works and everything.
+
+---
+
+Yeah, let's keep going. Let's work through all of those.
+
+---
+
+So now, based on where the frontier of research is currently at, does this reorientate the question better? And does this identify further gaps that we can't then fill in with our paper as well? Let's keep going, and then we could look back and really decide what's best.
+
+---
+
+Yeah, keep going. I know that we still have to do the verbatim framing as voice candidates. We could do that. We could do the Gemma rescoring.
+
+There's a few things still outstanding that we have to get to as well. This is good that the literature does show the gaps. This is exactly what we needed.
+
+We have Algoverse bias steering, I think, locally as well, and this is also, similar to this. I don't know because we did a lot of research recently on that. I don't know if we could tap into all of that information there too, because potentially that could advise this paper as well.
+
+---
+
+We could work on those while it's rescoring as well, can't we? Can't we do both of them in parallel?

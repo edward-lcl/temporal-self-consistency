@@ -34,3 +34,8 @@
 [gen] 3200/3622  EM=0.022 hedge_acc=0.000 fallback=0.000 (1170s, 0.37s/ex)
 [gen] 3300/3622  EM=0.021 hedge_acc=0.000 fallback=0.000 (1202s, 0.36s/ex)
 [gen] 3400/3622  EM=0.023 hedge_acc=0.000 fallback=0.000 (1226s, 0.36s/ex)
+[gen] 3500/3622  EM=0.023 hedge_acc=0.000 fallback=0.000 (1261s, 0.36s/ex)
+[gen] 3600/3622  EM=0.022 hedge_acc=0.000 fallback=0.000 (1295s, 0.36s/ex)
+
+[gen] wrote data/prep/predictions_7b/gemma4_26b_test.jsonl
+[gen] n=3622  EM=0.0218  hedge_acc=0.0000  fallback_rate=0.0000  wall=1301s
