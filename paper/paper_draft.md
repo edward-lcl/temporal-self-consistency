@@ -313,9 +313,83 @@ Four properties of the evaluation apparatus materially affect what any result he
 
 **Training teaches the answer the test marks wrong.** Because the partition is by time rather than by question, **927 of 3,177 unique test questions (29.2%) also appear in train, and 895 of those (96.5%) with a different answer.** For roughly a third of the test set, fine-tuning shows the model the 2018–2021 value and evaluation then demands the 2023–24 one. This is the mechanism behind 4.6.
 
+### 4.8 The benchmark inverts model quality
+
+If gold labels are expired, a model whose knowledge extends past them should be penalised in proportion to how current it is. We test this with a second model of different vintage on the same 2,951 questions with a resolvable live value:
+
+| model | vintage | EM vs dataset gold | EM vs **live Wikidata** | penalised for being current |
+|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2024 | **0.0380** | 0.0058 | 16 (0.54%) |
+| gemma-4-26B-A4B-it | 2026 | **0.0176** | **0.0532** | **153 (5.18%)** |
+
+The 2026 model is **9× more accurate about the actual present** and scores **less than half as well on the benchmark**. Representative cases, all marked wrong: Nestlé CEO → *Laurent Freixe* (in post since September 2024); YouTube CEO → *Neal Mohan* (February 2023); Toyota CEO → *Koji Sato* (2023).
+
+**The benchmark ranks the two models in the reverse order of their knowledge of the present.** On the 2024-vintage model the staleness looked nearly harmless — 0.54% of predictions affected — because that model does not know the current values either. The damage scales with model quality. A group evaluating a current model on this benchmark reads a *lower* number and may conclude their newer model is worse at temporal knowledge, when the opposite is true.
+
+Vintage is confounded here with family, parameter count and recipe, so we cannot attribute the gap to recency alone; the inversion, however, does not depend on the attribution. We also note that gemma-4 required two harness corrections before its numbers meant anything — multiple end-of-turn tokens, and a vocabulary with no spare embedding rows — without which it scored zero and would have appeared catastrophically worse.
+
+### 4.9 Repairing the benchmark does not rescue it
+
+Both major defects are repairable from material already in hand, without re-generating anything: replace each gold with the live Wikidata value, and drop every test question that also appears in training. That leaves 1,953 clean items.
+
+| | accuracy | ECE (repaired) | ECE (original) |
+|---|---|---|---|
+| SFT-only | **0.0046** | 0.4768 | 0.4552 |
+| TSCT | **0.0026** | 0.4789 | 0.4506 |
+| oracle (emit gold hedge) | — | **0.4788** | 0.4504 |
+| constant `[TEMPORAL_HEDGE]` | — | 0.4474 | 0.4227 |
+| **constant `[UNKNOWN]`** | — | **0.0974** | 0.0727 |
+
+**Every pathology survives the repair, and two deepen.** TSCT still sits on the oracle (0.4789 vs 0.4788). The capability-free constant still beats a perfect classifier, now 4.9×. ECE is *worse* for both arms than before.
+
+The reason is direct: scoring against what is true now drops accuracy from 2.3–2.7% to 0.46% and 0.26%, moving the base rate further from every scalar the taxonomy can express. Since ECE is minimised by whichever scalar sits nearest the base rate, the repair moves the target further from the instrument. **Better labels do not help, and neither would more seeds, a larger model, or a tuned λ.**
+
+### 4.10 Confidence decomposes: horizon-stable ranking, horizon-anti-calibrated level
+
+Bucketing by the year each fact changed separates two properties that are usually reported as one:
+
+| arm | change year | n | EM | mean logprob | AUROC(logprob → correct) |
+|---|---|---|---|---|---|
+| base | 2023 | 1,582 | 0.0487 | −0.7852 | 0.8649 |
+| base | 2024 | 2,040 | **0.0319** | **−0.7310** | 0.9037 |
+| TSCT | 2023 | 1,582 | 0.0386 | −0.6089 | 0.8348 |
+| TSCT | 2024 | 2,040 | 0.0186 | −0.6552 | 0.8302 |
+
+The untuned model is **more confident on the facts it is worse at**: accuracy falls from 0.0487 to 0.0319 as changes approach the present while mean log-probability *rises* (≈4 SE). Yet within each bucket the same signal ranks correctness at 0.865 and 0.904.
+
+So **discrimination is horizon-stable and level is not.** "Read the log-probabilities" is therefore insufficient advice: a system built that way ranks its uncertain answers correctly and still asserts the wrong absolute confidence on the newest facts — the exact failure temporal calibration exists to prevent.
+
+### 4.11 There is a usable operating point, and it is abstention
+
+Every result above asks what confidence the model should *state*. Ranking instead by the model's own log-probability and asking whether to answer at all:
+
+| coverage | n kept | precision | risk |
+|---|---|---|---|
+| **1%** | 36 | **0.611** | 0.389 |
+| 2% | 72 | 0.431 | 0.569 |
+| 5% | 181 | 0.331 | 0.669 |
+| 10% | 362 | 0.213 | 0.787 |
+| 100% | 3,622 | 0.039 | 0.961 |
+
+At 1% coverage the model is correct **61% of the time against a 3.9% base rate — 15.6×**, from a signal that is free and untrained. Average precision (3.3×, Section 5.3) understates this because it integrates over the useless tail; the head of the ranking carries the value, and risk–coverage exposes what ECE and AP both obscure.
+
 ---
 
 ## 5. Discussion
+
+### 5.0 What the evidence actually supports
+
+Three framings are available for these results, and only the third survives.
+
+*"TCL does not work."* True, and uninteresting: Sections 4.4 and 4.5 show the experiment could not have distinguished a working method from a broken one, so the null is unfalsifiable rather than informative.
+
+*"The benchmark is broken."* True, and it invites the obvious reply — then repair it. We did (Section 4.9). Every pathology survived and two deepened.
+
+**"Post-cutoff temporal factual QA is a regime in which calibration is not measurable by ECE over a discrete confidence vocabulary — and repairing the data makes this worse, not better."** This is what we can defend, and the failed repair is what licenses it. The broken verifier is a symptom; the regime is the cause. When a model is correct on ~0.5% of items, no vocabulary with a floor of 0.10 can express a calibrated belief about them.
+
+It is worth naming this in the taxonomy of a recent agentic-benchmark audit, which assigns an unsolved task one of five evidence-qualified outcomes through an ordered validity screen. This test split exhibits two of them simultaneously: a **broken oracle** (98.7% of golds expired; a model emitting the correct current answer is marked wrong) and an **exploit-only-passable** metric (a constant beats a perfect classifier sixfold). The benchmark can be **failed by being right and passed by not trying.**
+
+That screen is first-match-wins for a reason we learned the hard way: a broken oracle makes every downstream number uninterpretable, so it must be checked *before* the capability question. We ran it in the opposite order — measuring TCL's effect before auditing the gold — and the null we obtained first was unfalsifiable. We report this as a process finding, not only a result.
 
 ### 5.1 The null result was structurally guaranteed
 
@@ -362,7 +436,23 @@ We therefore claim only that **the architecture discards real information**, not
 
 The structure of this argument follows recent work on structural failure in retrieval, where scaling the retriever leaves a plateau that changing the schema removes. Our axes behave the same way: model scale (0.5B→7B), seeds, and λ move the result not at all, while changing the parameterisation moves within-relation AUROC from 0.4997 to 0.8465. The ceiling is set by the representation, not by the optimiser.
 
-### 5.4 Recommendations
+### 5.4 The direction the evidence leaves standing: abstention, not calibration
+
+Every measurement in this paper asks what confidence a model should *state*. That question presupposes there is something to be confident about. At 0.3–3.9% accuracy on post-cutoff volatile facts, there mostly is not, and the deployment-relevant question is not what number to attach to a wrong answer but **whether to answer at all**.
+
+Reframed that way (Section 4.11), the signal that fails as a calibration target becomes immediately useful: 61% precision at 1% coverage, 15.6× the base rate, untrained. Three consequences follow.
+
+**`[UNKNOWN]` was the appropriate response, and it was untrainable.** At 96% risk, refusal is correct for nearly every test item. The taxonomy's own lowest level was the right one — and it has zero training examples (Section 4.7). The four-level design encodes a belief that post-cutoff volatile facts are *partially* knowable; measured against current truth, they are not. That is a claim about the world the taxonomy got wrong, not a data-collection oversight.
+
+**Our own Introduction is inverted by our data.** Section 1 argues that temporal calibration should be a native capability rather than a retrieval patch. But internal knowledge at these horizons is ~4%, falling to ~0.3% against current truth. Retrieval is therefore not an alternative to calibration in this regime — it is the only mechanism that can supply the fact. A paper that set out to avoid retrieval concludes, from its own measurements, in favour of it.
+
+**The internal signal's job is routing, not hedging.** A confidence estimate reaching 61% precision at 1% coverage is a usable trigger for *answer from weights vs. retrieve* — a decision with a real cost structure — rather than a number to append to an answer the model does not have. Section 4.10 adds a constraint on how such a router must be built: because discrimination is horizon-stable while level is not, the routing threshold must vary with horizon even though the ranking does not.
+
+We therefore state the direction as: **stop asking models to express calibrated confidence about facts they do not hold; measure what they do hold, and use it to decide when to go and get the fact instead.** Concretely — report risk–coverage rather than ECE for post-cutoff factual QA; train abstention or routing as a binary with a cost structure rather than a four-way vocabulary with hand-assigned scalars; fit routing thresholds per horizon; and evaluate on retrieval cost saved at fixed answer quality.
+
+This is a positive claim resting on a measured operating point, not a negative result restated. The findings in Sections 4.2–4.10 are what license it: they establish that the alternative does not work, and why.
+
+### 5.5 Recommendations
 
 1. **Report oracle and constant-policy controls with every ECE number.** Without them, ECE cannot distinguish calibration from base-rate matching.
 2. **Report discrimination separately from calibration**, using average precision alongside AUROC in rare-positive regimes.
@@ -373,7 +463,7 @@ The structure of this argument follows recent work on structural failure in retr
 7. **Do not relax exact match without checking what the relaxation admits.** Ours would have been ~60% name collisions.
 8. **Guard against dead parameterisations** when adding tokens to padded vocabularies (Section 4.7 note below).
 
-### 5.5 Threats to validity
+### 5.6 Threats to validity
 
 **Single model, few seeds.** One base model, two seeds for the paired comparison, four for the gradient diagnostic. Sufficient to withdraw claims, insufficient to bound variance.
 
@@ -389,13 +479,13 @@ The structure of this argument follows recent work on structural failure in retr
 
 ## 6. Conclusion
 
-We set out to test whether a language model can be trained to distinguish time-stable from time-volatile facts and express calibrated uncertainty about the latter. We found a real defect in the proposed loss, fixed it, and then found that fixing it changes nothing measurable — because the benchmark it would be measured on cannot detect the difference.
+We set out to test whether a language model can be trained to distinguish time-stable from time-volatile facts and express calibrated uncertainty about the latter. We found a real defect in the proposed loss, corrected it, and then found that correcting it changes nothing measurable — because the benchmark cannot detect the difference, and because repairing the benchmark makes the measurement problem worse rather than better.
 
-The concrete findings are that the calibration gradient was severed by a non-differentiable `argmax` and is restored by a softmax expectation (replicated across four seeds and at 7B); that with the gradient restored, TCL changes ECE by less than 0.005 and the sign is seed-dependent; that a constant confidence output beats a perfect volatility classifier by 6× on this benchmark, so ECE here measures base-rate matching rather than calibration; that the learned hedge output is a relation-level template with chance-level per-example discrimination; and that the evaluation apparatus has defects large enough to matter on their own — 98.7% of gold answers are expired, 29.2% of test questions are taught a different answer during training, and `[UNKNOWN]` never appears in the data at all.
+The specific findings are: the calibration gradient was severed by a non-differentiable `argmax` and is restored by a softmax expectation, replicated across four seeds and at 7B; with the gradient restored, TCL moves ECE by less than 0.005 with a seed-dependent sign; a constant confidence output beats a perfect volatility classifier sixfold, so ECE here measures base-rate matching rather than calibration; the learned hedge output is a relation-level template with chance-level per-example discrimination; 98.7% of gold answers are expired, 29.2% of test questions are taught a different answer during training, and one of the four hedge tokens never appears in the data; a 2026-vintage model is nine times more accurate about the present and scores half as well, so the benchmark inverts model quality; and repairing both data defects leaves every pathology intact while deepening two.
 
-The constructive finding is that the model's own answer log-probabilities predict its correctness at AUROC 0.85 on exactly the examples where the trained hedge output is at chance, and that the untuned model's signal is stronger still. The information the method sought was present before training and was discarded by the representation chosen to express it.
+Taken together these do not show that temporal calibration is unachievable. They show that **this regime is not measurable with this instrument**, and that the failure is structural rather than a matter of labels, seeds, scale or hyper-parameters.
 
-We therefore report a negative result about a method, a set of defects in a benchmark, and one methodological recommendation we believe generalises: **ECE without constant-policy controls cannot support a claim about calibration ability**, and in the low-accuracy regime where temporal calibration is interesting, it will systematically favour methods that assert a well-chosen constant over methods that actually know something.
+The direction our measurements leave standing is a different question. Ranking by the model's own log-probability and asking whether to answer at all yields 61% precision at 1% coverage against a 3.9% base rate — a usable operating point from an untrained signal, on the same examples where the trained hedge output is at chance. At these horizons the model does not hold the facts, so the useful role for an internal confidence signal is not to hedge an answer it does not have but to decide when to retrieve one. We offer that, rather than the method we set out to validate, as the contribution: **measure what a model holds, and route on it.**
 
 ---
 
