@@ -80,6 +80,32 @@ def _load_scoring_fns():
     return mod.exact_match, mod.token_f1
 
 
+def _stop_ids(model_id, hf_tok):
+    """All ids that end a turn, not just `tokenizer.eos_token_id`.
+
+    gemma-4 declares eos_token_id [1, 106, 50] in generation_config.json. A loop
+    that checks only the tokenizer's single eos id runs straight past the turn
+    boundary into the model's thinking block, producing output like
+    "John Donahoethought\n*Correction:..." -- a CORRECT answer that exact-match
+    then scores as wrong. Silently comparing models under that bug would have
+    reported gemma as far weaker than it is.
+    """
+    ids = set()
+    if hf_tok.eos_token_id is not None:
+        ids.add(int(hf_tok.eos_token_id))
+    cfg = Path(model_id) / "generation_config.json"
+    if cfg.exists():
+        try:
+            e = json.load(open(cfg)).get("eos_token_id")
+            if isinstance(e, int):
+                ids.add(e)
+            elif isinstance(e, (list, tuple)):
+                ids.update(int(x) for x in e)
+        except Exception:
+            pass
+    return ids
+
+
 def load_base_only(model_id):
     """Load the untuned base model, with hedge tokens registered but untrained.
 
@@ -90,12 +116,27 @@ def load_base_only(model_id):
     """
     model, tokenizer = load(model_id)
     hf_tok = getattr(tokenizer, "_tokenizer", tokenizer)
-    new = [t for t in HEDGE_TOKENS if t not in set(hf_tok.get_vocab().keys())]
-    if new:
-        hf_tok.add_special_tokens({"additional_special_tokens": new})
-    hedge_ids = [hf_tok.convert_tokens_to_ids(t) for t in HEDGE_TOKENS]
+    vocab = getattr(getattr(model, "args", None), "vocab_size", None)
+
+    # Some families ship no spare embedding rows at all (Mistral-7B-v0.3,
+    # gemma-4: vocab_size == len(tokenizer) exactly). Adding hedge tokens there
+    # would index past the embedding matrix. Base runs do not need them -- the
+    # hedge output of an untuned model is meaningless either way (CLAIMS-LEDGER
+    # A3) -- so skip them and report hedge as unavailable rather than crashing.
+    spare = (vocab - len(hf_tok)) if vocab else 0
+    if spare >= len(HEDGE_TOKENS):
+        new = [t for t in HEDGE_TOKENS if t not in set(hf_tok.get_vocab().keys())]
+        if new:
+            hf_tok.add_special_tokens({"additional_special_tokens": new})
+        hedge_ids = [hf_tok.convert_tokens_to_ids(t) for t in HEDGE_TOKENS]
+    else:
+        print(f"[gen] {model_id}: {spare} spare embedding rows -- hedge tokens unavailable, "
+              "answer metrics only", flush=True)
+        hedge_ids = None
     model.eval()
-    return model, tokenizer, hedge_ids, {"model": model_id, "base_only": True}
+    return model, tokenizer, hedge_ids, {"model": model_id, "base_only": True,
+                                         "spare_rows": spare,
+                                         "stop_ids": sorted(_stop_ids(model_id, hf_tok))}
 
 
 def rebuild_adapter(adapter_dir):
@@ -183,7 +224,8 @@ def load_source(name, limit=None):
 ANSWER_HINT = " Answer with only the name, no explanation."
 
 
-def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hint=False):
+def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hint=False,
+                 stop_ids=None):
     """Greedy decode one example; return (answer_text, hedge, used_fallback).
 
     Prompt format mirrors training exactly (chat template + generation
@@ -208,8 +250,8 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
         [{"role": "user", "content": content}],
         tokenize=True, add_generation_prompt=True, return_dict=False,
     ))
-    eos_id = hf_tok.eos_token_id
-    hedge_set = set(hedge_ids)
+    stops = set(stop_ids) if stop_ids else {hf_tok.eos_token_id}
+    hedge_set = set(hedge_ids) if hedge_ids else set()
 
     cache = make_prompt_cache(model)
     logits = model(mx.array([prompt_ids]), cache=cache)[:, -1, :]
@@ -217,7 +259,7 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
 
     for _ in range(max_tokens):
         nxt = int(mx.argmax(logits, axis=-1).item())
-        if nxt == eos_id:
+        if nxt in stops:
             break
         if nxt in hedge_set:
             hedge_tok = HEDGE_TOKENS[hedge_ids.index(nxt)]
@@ -230,7 +272,7 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
         generated.append(nxt)
         logits = model(mx.array([[nxt]]), cache=cache)[:, -1, :]
 
-    used_fallback = hedge_tok is None
+    used_fallback = hedge_tok is None and bool(hedge_ids)
     if used_fallback:
         hl = logits[0, mx.array(hedge_ids)]
         hedge_tok = HEDGE_TOKENS[int(mx.argmax(hl).item())]
@@ -284,7 +326,7 @@ def main():
         for i, r in enumerate(rows):
             text, hedge, fb, conf = generate_one(
                 model, tokenizer, hedge_ids, r["question"], args.max_tokens,
-                answer_hint=args.answer_hint,
+                answer_hint=args.answer_hint, stop_ids=cfg.get("stop_ids"),
             )
             correct = exact_match(text, r["gold_answer"])
             # Containment guards a real confound in the D1 comparison: a base
@@ -295,14 +337,14 @@ def main():
             gold_in_gen = _norm(r["gold_answer"]) in _norm(text) if text else False
             n_fallback += fb
             n_correct += correct
-            n_hedge_right += hedge == r["gold_hedge"]
+            n_hedge_right += bool(hedge) and hedge == r["gold_hedge"]
             f.write(json.dumps({
                 "question": r["question"],
                 "predicted_answer": text,
                 "gold_answer": r["gold_answer"],
                 "predicted_hedge": hedge,
                 "gold_hedge": r["gold_hedge"],
-                "confidence": HEDGE_TO_CONFIDENCE[hedge],
+                "confidence": HEDGE_TO_CONFIDENCE[hedge] if hedge else None,
                 "correct": bool(correct),
                 "gold_in_generation": bool(gold_in_gen),
                 "f1": token_f1(text, r["gold_answer"]),
