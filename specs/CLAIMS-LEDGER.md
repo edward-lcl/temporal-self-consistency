@@ -61,7 +61,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` (n=1) |
 | B6 / B7 — fine-tuning adds no knowledge, and causes entity interference | `SUPPORTED` |
 | B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
-| **B8 — the model's own logprobs predict its correctness at 0.85 where the hedge scheme is at chance** | **`SUPPORTED`** |
+| **B8 — the model's own logprobs predict its correctness at 0.84 where the hedge scheme is at chance** | **`SUPPORTED`, qualified** (z=13.6 but AP only 3.3x baseline; 35% of positives are train-seen) |
 
 Two independent reasons this setup could not have shown a TCL effect even if one
 exists, so the refutations above should not be read as "TCL cannot work":
@@ -80,11 +80,17 @@ doing template matching on both output channels. Demonstrating a TCL effect need
 a different instrument, not more seeds.
 
 **And the paper does not have to end there.** B8 shows the per-example signal
-exists in the same model on the same examples at AUROC 0.85 — the discrete
-four-token scheme is what destroys it. That converts "this path is a dead end"
-into "here is the specific design choice that caused the dead end, and here is
-what to do instead." The negative results become the *evidence* for the positive
-recommendation rather than the conclusion.
+exists in the same model on the same examples — the discrete four-token scheme is
+what destroys it. Scaling the power axis (model size, seeds, lambda) does not move
+the result; changing the parameterisation does. That converts "this path is a dead
+end" into "here is the specific design choice that caused it."
+
+But B8 is a **qualified** positive, and the qualification must travel with it: the
+effect is statistically overwhelming (z=13.6) and practically weak (average
+precision 0.0913 against a 0.0273 base rate, 3.3x). It establishes that the
+architecture discards real information. It does **not** establish that recovering
+that information would produce a usable system. Claiming the latter would repeat
+exactly the error this ledger exists to catch.
 
 ---
 
@@ -402,6 +408,30 @@ separate correct from incorrect answers at **~0.85**.
 
 Length-stratified pooled AUROC **0.8612** (n=3,140). High in every stratum.
 
+### The argument structure to use (from _The Recall Debt_, COLM 2026 submission)
+
+That paper argues a *structural* failure: flat memory schemas cannot reach
+multi-hop terminals, and it proves this is architectural rather than a tuning
+problem by **scaling the power axis and showing a plateau** — BM25 0%, dense 0%,
+late-interaction 2.5%, frontier API embedder 22.6% — against **61.6% once the
+bridge is made explicit**. Their framing: _"An absolute floor, not a
+degradation... A better embedding model moves documents around in the same
+similarity space; it does not add the missing relation."_
+
+Our evidence has exactly that shape, and this is a far stronger way to present
+B8 than "logprobs score higher":
+
+| axis | intervention | result |
+|---|---|---|
+| **power** | 0.5B -> 7B | no effect on the calibration claim |
+| **power** | 4 seeds @0.5B, 2-3 @7B | no effect (A2, B2 refuted) |
+| **power** | lambda 0 -> 0.5/0.5/0.3 | 0.0046 ECE (B1) |
+| **structure** | discrete hedge token -> model's own logprob | **0.4997 -> 0.8465** |
+
+Scaling the power axis does not move it. Changing the parameterisation does.
+That is the same claim shape, and it is what makes this a design finding rather
+than a tuning observation.
+
 ### Why this reframes the whole project
 
 The model **already knows what it does not know**, per example, at 0.85. The
@@ -427,12 +457,54 @@ parameterisation destroys the available signal."**
    scalar, if discrete output is wanted for the interface — not as the thing the
    loss operates on.
 
-Caveats: n=1 seed, one model, one dataset. Logprob-based confidence is
-established in the literature; the contribution here is not "logprobs work" but
-the **controlled, same-model, same-examples comparison showing the proposed
-method performs at chance where the freely available signal reaches 0.85.**
-Only 99 of 3,622 examples are positives, so the confidence interval is wide;
-replication across seeds and a second model is the obvious next step.
+### Is it statistically real? Yes. Is it practically useful? No.
+
+Both, and they must be reported together — Edward pushed on this and the answer
+splits.
+
+| | value |
+|---|---|
+| AUROC | 0.8406 |
+| Hanley-McNeil SE | 0.0250 |
+| analytic 95% CI | [0.792, 0.890] |
+| bootstrap 95% CI (200x) | [0.813, 0.873] |
+| **z vs 0.5** | **13.6** |
+| **average precision** | **0.0913** (baseline 0.0273 = **3.3x**) |
+| precision @ 50% recall | **0.113** |
+
+**Statistically it is not marginal at all** — z=13.6. **Practically it is weak.**
+At a 2.7% base rate, ranking by logprob and taking enough to recover half the
+correct answers still leaves you wrong ~89% of the time. AUROC is
+imbalance-insensitive and flatters rare-positive problems; average precision is
+the honest lens and it says 3.3x baseline, not a solved problem.
+
+Some of that weakness is inherited: the 2.7% base rate is itself produced by the
+broken benchmark (C5), so AP would look different on a set where the model gets a
+meaningful fraction right. That is an explanation, not an excuse.
+
+### Validity gate on the positive class
+
+Applying the discipline from _The Recall Debt_ Section 5 (a plausible filter can
+*enrich* for artifacts, and a weak judge will wave them through) to our own 99
+positives:
+
+| check | count | share |
+|---|---|---|
+| answer value also appears in the TRAIN split | 52/99 | 52.5% |
+| **this exact question appears in the TRAIN split** | **35/99** | **35.4%** |
+| "correct" means reproducing a value that is now expired (C5) | 75/99 | 75.8% |
+
+So a third of the positive class is train-seen, and three quarters of "correct"
+means *successfully reciting a stale fact*. The signal is partly memorisation
+confidence rather than knowledge confidence.
+
+**It survives exclusion**: dropping every train-seen positive gives AUROC
+**0.8176** on npos=64, against 0.8406 on all 99. Real signal remains, but B8 is a
+qualified positive, not a clean one.
+
+Caveats: n=1 seed, one model, one dataset. Logprob confidence is established in
+the literature; the contribution is the **controlled same-model, same-examples
+comparison** showing the proposed method at chance where the free signal is not.
 
 ---
 
