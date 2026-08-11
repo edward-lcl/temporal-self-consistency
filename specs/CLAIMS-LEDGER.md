@@ -61,6 +61,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` at n=2 (our SFT is 0.4552/0.4551, not 0.85) |
 | B6 / B7 — fine-tuning adds no knowledge, and causes entity interference | `SUPPORTED` |
 | B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
+| **C9 — the benchmark INVERTS model quality: a 2026 model is 9x more current and scores half as well** | **`ESTABLISHED`** (sharpest form of C5) |
 | **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
 | C8 — `exact_match` is a mild floor; the obvious relaxation enriches for name collisions | `ESTABLISHED` |
 | **B9 — internal confidence ranks correctness at every horizon but its LEVEL is anti-calibrated to horizon** | **`SUPPORTED`** (the gap the literature has not closed) |
@@ -778,6 +779,59 @@ share a name.
 
 Conclusion: keep EM, note it is a slight floor, and do **not** substitute a fuzzy
 threshold without a capability-grade check on what it admits.
+
+## C9. The benchmark inverts model quality — a more current model scores lower
+**`ESTABLISHED`** (single seed each, confounds stated) — **the sharpest demonstration of C5**
+
+Same 2,951 test questions with a resolvable live value, same scoring, two models
+of different vintage:
+
+| model | vintage | EM vs dataset gold | EM vs **live Wikidata** | penalised for being current |
+|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2024 | **0.0380** | 0.0058 | 16 (0.54%) |
+| gemma-4-26B-A4B-it | 2026 | **0.0176** | **0.0532** | **153 (5.18%)** |
+
+Read the two middle columns together:
+
+- gemma-4 is **9× more accurate about the actual current world** (0.0532 vs 0.0058);
+- and scores **less than half as well on the benchmark** (0.0176 vs 0.0380);
+- and is penalised for giving the correct current answer **10× more often**.
+
+**The benchmark ranks the models in the reverse order of their knowledge of the
+present.** Because 98.7% of gold labels are expired (C5), the metric rewards
+agreement with a 2023–24 snapshot, and a model whose knowledge extends past that
+snapshot is punished exactly in proportion to how current it is.
+
+Concrete cases from the gemma run, all scored wrong: Nestlé CEO → *Laurent
+Freixe* (in post since Sept 2024, gold Ulf Mark Schneider); YouTube CEO → *Neal
+Mohan* (Feb 2023, gold Susan Wojcicki); Toyota CEO → *Koji Sato* (2023, gold Akio
+Toyoda).
+
+### Why this matters more than C5 alone
+
+C5 established the labels are stale. On Qwen2.5 that looked nearly harmless —
+0.54% of predictions affected — because that model does not know the current
+values either. C9 shows the damage **scales with model quality**. Any group
+running this benchmark on a current model will read a *lower* number and may
+conclude their newer model is worse at temporal knowledge, when the opposite is
+true and the instrument is inverted.
+
+This is the practical form of the paper's argument: a decayed benchmark does not
+merely add noise, it **reverses the ordering it is used to establish**.
+
+### Confounds, stated
+
+Vintage is confounded with family (Qwen vs gemma), parameter count (7B vs 26B
+MoE) and training recipe. We cannot attribute the difference to recency alone.
+But the inversion does not depend on the attribution: whatever makes gemma-4
+more current, the benchmark penalises it for that currency. A clean vintage
+contrast needs the `Qwen3.5-27B` vs `Qwen3.6-27B` pair identified in F6, whose
+architectures are byte-identical.
+
+Note also gemma-4 required two harness fixes before its numbers meant anything
+(multi-EOS stop tokens, zero spare embedding rows — see C8). Under the original
+harness it scored 0 and would have looked catastrophically worse, which is a
+second-order instance of the same lesson.
 
 ## C6. The verification reference has its own lag — "current" is not ground truth
 **`ESTABLISHED`** (as a constraint on method, before any D8 number is read)
