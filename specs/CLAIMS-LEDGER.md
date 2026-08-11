@@ -63,6 +63,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
 | **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
 | C8 — `exact_match` is a mild floor; the obvious relaxation enriches for name collisions | `ESTABLISHED` |
+| **B9 — internal confidence ranks correctness at every horizon but its LEVEL is anti-calibrated to horizon** | **`SUPPORTED`** (the gap the literature has not closed) |
 | **B8 — the model's own logprobs predict its correctness at 0.84 where the hedge scheme is at chance** | **`SUPPORTED`, qualified** (z=13.6 but AP only 3.3x baseline; 35% of positives are train-seen) |
 
 Two independent reasons this setup could not have shown a TCL effect even if one
@@ -554,6 +555,57 @@ qualified positive, not a clean one.
 Caveats: n=1 seed, one model, one dataset. Logprob confidence is established in
 the literature; the contribution is the **controlled same-model, same-examples
 comparison** showing the proposed method at chance where the free signal is not.
+
+## B9. Internal confidence ranks correctness well at every horizon, but its *level* is anti-calibrated to horizon
+**`SUPPORTED`** (n=1 seed) — **the clearest remaining gap the literature has not closed**
+
+Bucketing test predictions by the year the fact changed:
+
+| arm | change year | n | EM | mean logprob | AUROC(logprob → correct) |
+|---|---|---|---|---|---|
+| base | 2023 | 1,582 | 0.0487 | −0.7852 | 0.8649 |
+| base | 2024 | 2,040 | **0.0319** | **−0.7310** | 0.9037 |
+| TSCT | 2023 | 1,582 | 0.0386 | −0.6089 | 0.8348 |
+| TSCT | 2024 | 2,040 | 0.0186 | −0.6552 | 0.8302 |
+
+**The untuned model is more confident on the facts it is worse at.** Accuracy falls
+from 0.0487 to 0.0319 as the change moves closer to the present, while mean
+log-probability *rises* from −0.7852 to −0.7310. The confidence gap is ≈4 SE
+(logprob sd ≈ 0.5, n ≈ 1,600–2,000 per bucket), so the direction is not noise.
+
+Yet **within** each horizon bucket the same signal ranks correctness at AUROC
+0.865 and 0.904 — as good as or better than the pooled figure.
+
+### Why this matters and why it is a gap
+
+Section 2.6's literature establishes that internal signals beat expressed ones.
+It treats confidence as a single quantity. This decomposes it:
+
+- **discrimination** (does the signal rank correct above incorrect?) is strong
+  and *stable across temporal horizon* — 0.86 at 2023, 0.90 at 2024;
+- **level** (does the magnitude track the realised accuracy at that horizon?) is
+  **wrong, and for the untuned model runs backwards.**
+
+So "just read the log-probabilities" is not sufficient advice, which is what our
+own earlier framing implied. A system built that way would rank its uncertain
+answers correctly and still assert the wrong absolute confidence on the newest
+facts — exactly the failure temporal calibration is meant to prevent.
+
+**The design that follows:** a horizon-dependent mapping from internal signal to
+asserted confidence. Discrimination can be read off the model for free; the
+level must be *fitted per horizon* against realised accuracy, because the model
+does not supply it and gets its direction wrong. That is a concrete, testable
+proposal, it is not what TSCT does, and it is not what the verbalised-confidence
+literature currently recommends.
+
+Note TSCT's level moves in the *correct* direction (−0.6089 → −0.6552) where
+base moves backwards. This is the only measurement in this ledger where the
+trained arm looks better than base on something, and at n=1 seed it is not a
+claim — but it is the one place worth spending a seed to check.
+
+Missing: seed replication (the seed-1 adapters exist and this probe is ~15 min
+each); a third horizon bucket, which this split cannot supply since every test
+row is 2023 or 2024; and the same decomposition on a newer model.
 
 ---
 
