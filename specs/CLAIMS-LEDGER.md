@@ -930,6 +930,43 @@ much more precise and more useful diagnosis than "the method failed."
 The scheme with the *least* per-example information can score *best* on the
 reported metric. That single row is the paper's argument.
 
+## F0. The organising frame: two TB3 failure modes firing at once
+
+_Edward's observation, 2026-08-11: C9 "is just like a broken verifier, bringing
+it back to the TB3 stuff." That is the right frame and it should structure the
+paper._
+
+The Terminal-Bench 3 audit assigns an all-fail task one of five evidence-qualified
+outcomes via an ordered validity screen. Two of them describe TemporalDelta's
+test split **simultaneously**:
+
+| TB3 outcome | their definition | our instance |
+|---|---|---|
+| **broken oracle** | the authored reference route fails, so the zero is a defect not a difficulty | **C5/C9** — 98.7% of gold answers are expired. A model emitting the *correct current* answer is marked wrong. gemma-4 is 9× more current and scores half as well. |
+| **exploit-only-passable** | the task is passable by a route requiring no capability | **B3** — constant `[UNKNOWN]` scores ECE 0.0727 against the oracle's 0.4504. A policy ignoring the input beats a perfect classifier 6×. |
+
+So the benchmark can be **failed by being right** and **passed by not trying**.
+Those are the two ends of the same broken instrument, and every negative result
+in section B is downstream of one or the other.
+
+**Why this frame is better than the one we had.** We were presenting a list of
+defects — stale golds, train/test overlap, missing token, gameable metric — which
+reads as a grab-bag. Under the screen it is two named, previously-catalogued
+failure modes, and the contribution becomes: *port an adjudication protocol built
+for agentic benchmarks to a calibration benchmark, and find that it fires.* That
+generalises past this dataset and gives reviewers a familiar structure.
+
+It also explains the ordering discipline. TB3's screen is first-match-wins for a
+reason: a broken oracle makes every downstream number uninterpretable, so it must
+be checked *before* the capability question. We ran ours in the wrong order —
+measuring TCL's effect (B1) before auditing the gold (C5) — and the null we
+reported first turned out to be unfalsifiable rather than informative. That is
+worth stating in the paper as a process finding.
+
+**What the paper should therefore lead with:** not "TCL does not work" but "here
+is a calibration benchmark that fails an adjudication screen in two independent
+ways, and here is what that did to a result reported from it."
+
 ## F5. Venue: there is a workshop that explicitly asks for this paper
 
 From the prior-art scan in `~/Projects/Algoverse-Bias-Steering/docs/PRIOR_ART_2026-08-07.md`
