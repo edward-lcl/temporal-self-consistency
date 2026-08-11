@@ -190,16 +190,46 @@ Missing: seed replication; ideally their checkpoint or its predictions.
 **This is the most consequential and least replicated claim in the ledger.**
 
 ## B5. Both arms have real, equal discriminative skill
-**`SUPPORTED`**
+**`REFUTED`** — the apparent skill is a between-dataset artifact
 
-AUROC of asserted confidence against answer correctness, test+stable pooled
-(n=3671): **SFT 0.6700, TSCT 0.6704**. A constant policy scores exactly 0.5 by
-construction.
+Initially recorded as `SUPPORTED` on pooled test+stable AUROC (SFT 0.6700, TSCT
+0.6704, against 0.5 for any constant). Stratifying kills it:
 
-This is the constructive counterpart to B3: the models carry genuine signal that
-ECE not only fails to reward but actively penalises relative to a zero-skill
-constant. **Discrimination and calibration must be reported separately.** TCL
-does not change discrimination.
+| | SFT | TSCT |
+|---|---|---|
+| AUROC, test+stable pooled | 0.6700 | 0.6704 |
+| AUROC, test only | 0.5026 | 0.5300 |
+| **AUROC within relation type** (n-weighted, n≈3400) | **0.5000** | **0.4997** |
+
+Per-relation, both arms, every relation with meaningful n:
+
+| relation | n | SFT | TSCT |
+|---|---|---|---|
+| head_of_gov | 1349 | 0.500 | 0.500 |
+| officeholder | 908 | 0.500 | 0.499 |
+| chairperson | 708 | 0.500 | 0.500 |
+| ceo | 216 | 0.500 | 0.498 |
+| parent_org | 125 | 0.500 | 0.500 |
+
+The 0.67 was entirely the model separating the *stable-facts stress set* from the
+*temporal-delta set* — a distinction between two corpora, not between examples.
+Within a relation type the confidence is essentially constant, so AUROC is 0.5 by
+construction (all ties).
+
+**Interpretation: the model learned a lookup table from relation type to hedge
+token.** "CEO questions get `[TEMPORAL_HEDGE]`" is learnable from the question
+template alone, with zero knowledge of the specific entity. It has no ability to
+tell which *particular* facts it will get right.
+
+This subsumes several earlier puzzles. TSCT ≈ SFT because both learn the same
+lookup. TCL cannot improve calibration because no per-example signal is being
+learned to calibrate. And ECE reduces to base-rate matching (B3) because a
+confidence that is constant per relation *is* a constant policy, merely
+stratified.
+
+**Consequence for D2:** fitting the confidence scalars to realised accuracy would
+minimise ECE by implementing the B3 exploit more precisely. It should be reported
+as a **baseline that requires no capability**, never as a method.
 
 ---
 
@@ -263,6 +293,8 @@ suggests it does not know the post-change values. Not a substitute for an audit.
 | D3 | Does B4 survive seeds? | Most consequential, least replicated claim here. | ~3.6 h |
 | D4 | What is in the 86% "neither" bucket? | Distinguishes "no knowledge" from "corrupted knowledge". Mechanistic. | ~1 h |
 | D5 | Does TCL help on a **volatility-balanced** held-out set? | Every held-out measurement so far is on a set where one class is 90.8%. | needs a new split |
+| D6 | **Does within-relation discrimination ever exceed 0.5?** (Edward, 2026-08-11) | B5 says our model is a relation→hedge lookup table. The sharp question is whether *any* model does better, or whether this task is only ever solvable by template matching. This is the pattern-matching-vs-reasoning question made measurable, and B5 gives it a clean threshold: within-relation AUROC > 0.5. | see D7 |
+| D7 | **Temporal sweep across model generations** (Edward, 2026-08-11) | Hold parameter count fixed (~7-8B) and vary release date: a 2024, an early-2025, a mid-2025, and a mid-2026 model. Two questions at once — (a) does within-relation discrimination (D6) improve with generation, and (b) does the knowledge-cutoff boundary itself move, which changes which facts are "post-cutoff" per model and is a confound for every result in this ledger. Note the cheap version needs **no training**: zero-shot answer accuracy per generation already tests (b), and D1's harness covers it. | high — several model downloads (37GB free) + eval per model; the zero-shot half is much cheaper |
 
 ---
 
