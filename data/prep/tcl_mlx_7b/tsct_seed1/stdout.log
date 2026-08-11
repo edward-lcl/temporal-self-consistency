@@ -1,9 +1,14 @@
 [mlx] loaded 8008 raw examples
 
 [mlx] === condition: fixed ===
-Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 52283.57it/s]
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 13254.47it/s]
 [mlx] hedge ids (no resize): [151665, 151666, 151667, 151668]
 [mlx] adapted output projection: lm_head (untied)
 Trainable parameters: 0.168% (12.780M/7615.617M)
 [mlx] 8008 examples after tokenisation (max_len=128)
 [mlx] hedge-head check: logit spread=0.000000 contrast_grad_norm=1166.620605
+[mlx] fixed pre-train (n=8008) acc=0.4412 majority=0.4994 dist={'[CONFIDENT]': 1.0, '[COND_CONFIDENT]': 0.0, '[TEMPORAL_HEDGE]': 0.0, '[UNKNOWN]': 0.0}
+[mlx] fixed step 0 ce=11.1591 total=11.1826 grad=2.6270954608917236 conf_frac=1.000 (1s)
+[mlx] fixed step 200 ce=2.3256 total=2.3761 grad=17.741106033325195 conf_frac=0.750 (163s)
+[mlx] fixed step 400 ce=2.9918 total=3.1082 grad=4.043253421783447 conf_frac=1.000 (330s)
+[mlx] fixed step 600 ce=2.1482 total=2.1807 grad=11.11671257019043 conf_frac=0.500 (493s)

@@ -310,8 +310,8 @@ on fabrication.**
 Measurement gap: "recited a former officeholder" and "invented a person" score
 identically under EM, though they are different epistemic states.
 
-## C5. The test split's gold answers are expired values — the label is stale, not the model
-**`ESTABLISHED`** (the structural fact) / **`UNCERTIFIED`** (what fraction are wrong in reality)
+## C5. The test split's gold answers are expired values
+**`ESTABLISHED`** — rate measured by D8. My initial reading of its *consequence* was an overclaim; see the correction below.
 
 Structural fact, from the dataset alone:
 - Every test row carries `t_end` of **2023 (1,582)** or **2024 (2,040)**. Not one has
@@ -329,29 +329,95 @@ reality:
 | CEO of YouTube LLC | Susan Wojcicki | Neal Mohan | Mohan since Feb 2023 — **model correct, scored wrong** |
 | Chair of News Corporation | Rupert Murdoch | Lachlan Murdoch | Lachlan since Nov 2023 — **model correct, scored wrong** |
 
-**This inverts the paper's premise.** TSCT assumes the model's knowledge is stale
-relative to the world, so it should hedge. On this test set the *label* is stale
-relative to the model, and answering correctly is penalised. Qwen2.5's ~2024
-cutoff postdates many of these changes, so it often knows the successor — and is
-marked wrong for it.
+### D8 result (live Wikidata, queried 2026-08-11T10:02Z)
 
-It also explains the otherwise baffling 2.7% accuracy. That number is not "the
-model does not know post-cutoff facts." It is closer to "the model knows the
-current fact and the label wants the previous one."
+The rate is now measured, and it **confirms the defect while refuting the
+consequence I initially drew from it.**
 
-**Contaminates:** every accuracy figure in this ledger — B6/D1, the C3 three-way
-rescore, and the EM inputs to every ECE number in B1/B3. ECE is affected doubly,
-since `correct` feeds it directly.
+| verdict | pairs | share |
+|---|---|---|
+| `gold_is_stale` | 2,575 | 80.3% |
+| `gold_is_current` | 35 | **1.1%** |
+| `indeterminate` (no unambiguous current value) | 595 | 18.6% |
 
-What is `UNCERTIFIED`: what fraction of the 3,306 orphans have a gold that is
-actually wrong today. Establishing that needs external ground truth (live Wikidata
-at a pinned date), not the frozen snapshot. The two spot checks above are
-existence proofs, not a rate.
+**Stale-gold rate among decided pairs: 2,575/2,610 = 98.7%.** Only 35 of 3,205
+test golds are the value that holds today. Note the direction of C6's bias:
+Wikidata lag makes the reference look *more* like the older gold, so it inflates
+`gold_is_current`. 98.7% is therefore conservative.
 
-**Do not report any accuracy or ECE number from this test split until this is
-resolved.** If it holds at scale, the benchmark needs relabelling against a dated
-snapshot before it can support any claim — and that is a finding about the
-dataset worth reporting in its own right.
+### Correction: the mechanism I claimed is real but rare
+
+Rescoring predictions against live Wikidata instead of the dataset gold
+(n=2,949 with a resolvable current value):
+
+| arm | EM vs dataset gold | EM vs Wikidata current | penalised for being right |
+|---|---|---|---|
+| base | 0.0380 | 0.0058 | 16 (0.5%) |
+| SFT | 0.0197 | 0.0061 | 17 (0.6%) |
+| TSCT | 0.0254 | 0.0051 | 15 (0.5%) |
+
+The YouTube and News Corp spot checks were **exceptions, not the rule**. Only
+~0.5% of predictions (15-17 rows) are cases where the model gave the current
+value and was marked wrong. I claimed this "inverts the paper's premise" and
+"explains the 2.7% accuracy" — **both were overclaims from two examples, and the
+rate refutes them.**
+
+What is actually true: the models do not know *either* value. 3.8% against the
+expired gold, 0.6% against current truth. Most wrong answers are wrong both ways,
+consistent with C3's 86% "neither" bucket.
+
+### What survives, restated precisely
+
+1. **The premise holds.** Models score 0.6% against current truth, so they
+   genuinely do not know these post-cutoff facts. That is what TSCT assumes.
+2. **The benchmark is still invalid, for a different reason than I said.** It
+   asks present-tense questions and scores agreement with values that expired in
+   2023-24. "Accuracy" on it means *reproduces the old snapshot*, not *knows the
+   fact* — and it overstates knowledge by roughly 6x (3.8% vs 0.6%).
+3. **Contamination of other claims is minor, not fatal.** At ~0.5% affected, B6/D1
+   and the C3 rescore stand; the relative ordering between arms is unchanged. I
+   previously wrote "do not report any accuracy or ECE number from this split" —
+   that was too strong. They can be reported **with the label-as-of date stated**
+   and the 6x overstatement noted.
+
+## C6. The verification reference has its own lag — "current" is not ground truth
+**`ESTABLISHED`** (as a constraint on method, before any D8 number is read)
+
+Raised by Edward 2026-08-11, pointing at a Google/DeepMind leadership reorg
+reported 2026-08-05 — six days before our audit query.
+
+D8 compares the dataset's gold against *live Wikidata*. That is a better
+reference than the frozen snapshot, but it is **not ground truth**. Wikidata is
+volunteer-edited and lags reality by an unknown, entity-dependent interval. For a
+change six days old, it may be absent, partial, or mid-edit. So D8's verdicts can
+be wrong in both directions:
+
+- `gold_is_stale` may be **wrong** if Wikidata has moved ahead of a change that
+  was later reverted or mis-entered;
+- `gold_is_current` may be **wrong** if Wikidata simply has not caught up, making
+  a genuinely stale gold look fine.
+
+This is C5 recursing one level up. The dataset's labels are a dated snapshot of
+Wikidata; our audit is a *later* dated snapshot of the same source. Neither is
+truth, and the honest framing of D8 is:
+
+> **"dataset gold vs Wikidata as of `queried_at_utc`"**, not "gold vs reality".
+
+Practical consequences, all adopted:
+1. `queried_at_utc` is recorded in the audit output — already done.
+2. A follow-up pass records each entity's Wikidata `modified` timestamp, so the
+   freshness of the reference is reportable rather than assumed. An entity last
+   edited in 2023 is much weaker evidence than one edited last week.
+3. Any headline rate from D8 must carry both dates: the dataset snapshot and the
+   query date.
+
+**Deeper point worth putting in the paper.** This is the paper's own thesis
+turned on the paper: *any* temporal factual benchmark is a dated snapshot whose
+labels decay, and validating one requires another dated snapshot that is also
+decaying. There is no fixed reference. That argues for benchmarks that report a
+label-as-of date and are re-validated on a schedule, rather than published once
+as if timeless — a concrete, defensible methodological recommendation that comes
+directly out of this audit.
 
 ## C4. Contamination has not been audited for *our* base model
 **`UNCERTIFIED`**
@@ -371,7 +437,7 @@ suggests it does not know the post-change values. Not a substitute for an audit.
 | D3 | Does B4 survive seeds? | Most consequential, least replicated claim here. | ~3.6 h |
 | D4 | What is in the 86% "neither" bucket? | Distinguishes "no knowledge" from "corrupted knowledge". Mechanistic. | ~1 h |
 | D5 | Does TCL help on a **volatility-balanced** held-out set? | Every held-out measurement so far is on a set where one class is 90.8%. | needs a new split |
-| D8 | **Verify C5 at scale against live Wikidata** | C5 says 91.3% of test golds are values the dataset marks as expired; two spot checks show the model penalised for being *more* current. If that rate is high, every accuracy and ECE number here is invalid and the benchmark needs relabelling against a dated snapshot. This is now the highest-priority open item — it gates everything downstream. | ~2 h, needs Wikidata API |
+| ~~D8~~ | **RESOLVED** -> see C5. Stale-gold rate 98.7% (2,575/2,610). But only ~0.5% of predictions are penalised for being current, so the contamination is minor and my "inverts the premise" reading was wrong. | — | done |
 | D6 | **Does within-relation discrimination ever exceed 0.5?** (Edward, 2026-08-11) | B5 says our model is a relation→hedge lookup table. The sharp question is whether *any* model does better, or whether this task is only ever solvable by template matching. This is the pattern-matching-vs-reasoning question made measurable, and B5 gives it a clean threshold: within-relation AUROC > 0.5. | see D7 |
 | D7 | **Temporal sweep across model generations** (Edward, 2026-08-11) | Hold parameter count fixed (~7-8B) and vary release date: a 2024, an early-2025, a mid-2025, and a mid-2026 model. Two questions at once — (a) does within-relation discrimination (D6) improve with generation, and (b) does the knowledge-cutoff boundary itself move, which changes which facts are "post-cutoff" per model and is a confound for every result in this ledger. Note the cheap version needs **no training**: zero-shot answer accuracy per generation already tests (b), and D1's harness covers it. | high — several model downloads (37GB free) + eval per model; the zero-shot half is much cheaper |
 
