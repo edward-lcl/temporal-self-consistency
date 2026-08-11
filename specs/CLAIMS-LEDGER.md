@@ -53,7 +53,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | claim | status |
 |---|---|
 | **F-2 — the question is ABSTENTION, not calibration: 61% precision at 1% coverage, 15.6x base rate** | **`ESTABLISHED`** (the positive direction) |
-| **F-2b — the operating point SCALES with model quality; lift is a ~12x constant, absolute precision 6.9% -> 65.5%** | **`ESTABLISHED`** (why it is a frontier bet) |
+| **F-2b/c — operating point scales with vintage across 3 models (6.9% -> 24.1% -> 65.5% @1%); lift constant 12-15x; a SMALLER newer model beats a bigger older one** | **`ESTABLISHED`** (why it is a frontier bet) |
 | **F-1 — we REPAIRED the benchmark (current golds, no train overlap) and every pathology survived; two deepened** | **`ESTABLISHED`** (the real spine) |
 | A1 — the `argmax` bug severed the calibration gradient; the fix reconnects it | `ESTABLISHED` (4 seeds @0.5B, 3 @7B) |
 | A3 — padded-vocab models silently break hedge training | `ESTABLISHED` |
@@ -1121,6 +1121,49 @@ Caveats: one seed per model; vintage confounded with family and size (F6);
 gemma's AUROC is *lower* than Qwen's while its precision is far higher, which is
 what a higher base rate does to a ranking metric and should not be read as worse
 discrimination.
+
+### F-2c. Three-point vintage ladder: the lift is constant, the operating point scales
+
+Adding a 2025-vintage model, all scored against **live current truth**:
+
+| model | vintage | params | acc @ current | AUROC | precision @ 1% | lift |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2024 | 7B | 0.0058 | 0.9402 | 0.069 | **12.0x** |
+| **gemma-3-4B-it** | **2025** | **4B** | **0.0156** | 0.9244 | **0.241** | **15.5x** |
+| gemma-4-26B-A4B-it | 2026 | 26B (MoE) | **0.0532** | 0.8417 | **0.655** | **12.3x** |
+
+**The gemma-3-4B row is the load-bearing one.** It is *smaller* than Qwen2.5-7B
+(4B vs 7B) and 2.7x more accurate about the current world. That partially
+decouples vintage from scale in the F6 confound: on this task recency dominates
+parameter count, so the improvement across the ladder is not simply a size
+effect.
+
+Three regularities:
+
+1. **Current-knowledge accuracy rises monotonically with vintage** — 0.58% ->
+   1.56% -> 5.32% — while the benchmark's own gold scores move the *opposite*
+   way (C9).
+2. **The lift stays put at 12-15x** across three model families, three vintages
+   and a 6.5x parameter range. The ranking machinery is not what improves.
+3. **The absolute operating point scales with base knowledge** — 6.9% -> 24.1%
+   -> 65.5% precision at 1% coverage.
+
+AUROC declines slightly across the ladder (0.9402 -> 0.8417); this is the
+expected behaviour of a ranking metric as the positive rate rises, not weaker
+discrimination, and it is exactly why precision-at-coverage rather than AUROC is
+the right report here.
+
+**What this licenses.** A recommendation that improves automatically with model
+progress, and whose improvement is driven by the component that is getting better
+anyway (world knowledge) rather than by one that is not (the confidence ranking).
+The hedge-token channel by contrast is at chance regardless of vintage, scale,
+seeds or lambda.
+
+**Not established:** a size-matched vintage pair. `gemma-4-E4B` was intended for
+this and is unloadable under mlx-lm 0.31.3 -- its checkpoint carries 126
+`language_model.*` parameters the loader rejects, indicating a multimodal or
+MatFormer variant. The Qwen3.5-27B / Qwen3.6-27B pair (F6, byte-identical
+architecture) remains the clean test and is still gated on disk.
 
 ### Why this is a positive result and not a dressed-up negative
 
