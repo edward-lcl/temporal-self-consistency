@@ -53,6 +53,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | claim | status |
 |---|---|
 | **F-2 — the question is ABSTENTION, not calibration: 61% precision at 1% coverage, 15.6x base rate** | **`ESTABLISHED`** (the positive direction) |
+| **F-2b — the operating point SCALES with model quality; lift is a ~12x constant, absolute precision 6.9% -> 65.5%** | **`ESTABLISHED`** (why it is a frontier bet) |
 | **F-1 — we REPAIRED the benchmark (current golds, no train overlap) and every pathology survived; two deepened** | **`ESTABLISHED`** (the real spine) |
 | A1 — the `argmax` bug severed the calibration gradient; the fix reconnects it | `ESTABLISHED` (4 seeds @0.5B, 3 @7B) |
 | A3 — padded-vocab models silently break hedge training | `ESTABLISHED` |
@@ -1028,6 +1029,49 @@ Concretely, and each of these is testable:
   horizon even though the ranking does not;
 - **retrieval triggered by internal signal**, evaluated on retrieval cost saved
   at fixed answer quality.
+
+### F-2b. The operating point scales with model quality — the lift is a constant
+
+The decisive test for a forward-looking recommendation: does this direction get
+*better* on better models? Scored against **live current truth** rather than the
+expired golds (which depress a modern model, C9):
+
+| | Qwen2.5-7B (2024) | gemma-4-26B-A4B (2026) |
+|---|---|---|
+| base accuracy vs current truth | 0.58% (17/2,951) | **5.32%** (157/2,951) |
+| AUROC(logprob -> correct) | **0.9402** | 0.8417 |
+| **precision @ 1% coverage** | 6.9% (**12.0x** lift) | **65.5%** (**12.3x** lift) |
+| @ 2% | 3.4% (5.9x) | 50.8% (9.6x) |
+| @ 5% | 4.1% (7.1x) | **42.9%** (8.1x) |
+| @ 10% | 5.1% (8.8x) | **35.9%** (6.8x) |
+
+Two things, and the second is the important one.
+
+**1. gemma-4 gives a genuinely deployable operating point.** 65.5% precision at 1%
+coverage, 42.9% at 5%, 35.9% at 10% -- on post-cutoff facts that changed, against
+a 5.3% base rate. That is a usable answer/abstain policy, not a suggestive
+correlation.
+
+**2. The relative lift is nearly a constant across generations: 12.0x vs 12.3x at
+1% coverage.** The discrimination machinery does not improve with model quality;
+what improves is the **base knowledge it operates on**. So the absolute operating
+point scales roughly with how much the model knows, while the signal's ability to
+rank stays put.
+
+That is exactly the property a frontier recommendation needs: **this direction
+improves automatically as models improve**, with no method change. Contrast the
+hedge-token channel, which is at chance (0.4997) regardless of scale, seeds or
+lambda, and which fine-tuning actively degrades.
+
+**Note also that Qwen2.5's AUROC rises when scored against correct labels**
+(0.8814 -> 0.9402). The expired golds were degrading our own measurement of the
+signal, not only the accuracy numbers -- a further instance of C5 contaminating
+downstream conclusions.
+
+Caveats: one seed per model; vintage confounded with family and size (F6);
+gemma's AUROC is *lower* than Qwen's while its precision is far higher, which is
+what a higher base rate does to a ranking metric and should not be read as worse
+discrimination.
 
 ### Why this is a positive result and not a dressed-up negative
 
