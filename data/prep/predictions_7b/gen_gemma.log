@@ -1,0 +1,6 @@
+[gen] /Users/edward/.oMLX/models/gemma-4-26b-a4b-it-MLX-4bit: 0 spare embedding rows -- hedge tokens unavailable, answer metrics only
+[gen] 3622 examples | source=temporal-delta:test | arm=base | adapter=None
+[gen] 100/3622  EM=0.080 hedge_acc=0.000 fallback=0.000 (30s, 0.30s/ex)
+[gen] 200/3622  EM=0.050 hedge_acc=0.000 fallback=0.000 (66s, 0.33s/ex)
+[gen] 300/3622  EM=0.067 hedge_acc=0.000 fallback=0.000 (93s, 0.31s/ex)
+[gen] 400/3622  EM=0.065 hedge_acc=0.000 fallback=0.000 (130s, 0.32s/ex)
