@@ -28,6 +28,77 @@ _Housekeeping: the "newest on top" convention has drifted -- the two 2026-08-09 
 
 **Where:** `data/prep/tcl_diagnostic_seeds/` (to be committed alongside this entry).
 
+## 2026-08-11 -- FIRST REAL ECE. The paper's headline effect looks like an artifact of a broken baseline.
+
+First held-out ECE numbers this project has ever had, computed by Jason's own `eval_pipeline.py` on generated predictions from both arms.
+
+**temporal-delta test (n=3,622, volatile-only by construction):**
+
+| arm | ECE | EM | F1 | hedge acc | mean asserted conf |
+|---|---|---|---|---|---|
+| SFT-only | 0.4552 | 0.0226 | 0.0402 | 0.9997 | 0.4778 |
+| TSCT | **0.4506** | 0.0273 | 0.0454 | 0.9994 | 0.4780 |
+
+**stress_stable_facts (n=49, all gold `[CONFIDENT]` -- the over-hedging detector, never run before):**
+
+| arm | ECE | EM | hedge acc | predicted distribution |
+|---|---|---|---|---|
+| SFT-only | 0.1520 | 0.8571 | 1.0000 | 49 `[CONFIDENT]` |
+| TSCT | 0.1602 | 0.8776 | 0.9388 | 46 `[CONFIDENT]`, 3 `[COND_CONFIDENT]` |
+
+### 1. TCL's ECE benefit is 0.0046. It is not there.
+
+On the benchmark the paper is built around, TSCT and SFT are indistinguishable.
+
+### 2. Why the Doc's number was so much bigger -- and why we should be careful about it
+
+The Slack table (recorded in the 2026-08-09 entry below) reports temporal_delta **TSCT 0.42 vs SFT 0.85**, i.e. `ECE_reduction=+0.4350, p=0.0099`.
+
+**Our TSCT arm reproduces theirs almost exactly: 0.4506 vs their 0.42.** Our SFT arm does not: 0.4552 vs their 0.85.
+
+An SFT baseline collapsed to `[CONFIDENT]` would assert 0.95 against ~8% accuracy -> ECE ~0.87, which is their 0.85. Our SFT does not collapse; it emits `[TEMPORAL_HEDGE]` correctly 99.97% of the time. So the most parsimonious reading is that **the reported effect is the distance between a broken baseline and a working model, not the contribution of TCL.** Train both arms correctly and the gap disappears.
+
+Stated carefully, because this contradicts a written Discussion section: n=1 seed, a different base model (Qwen2.5-7B vs their LLaMA-3 8B), and our reimplemented loss with inferred `L_over`/`L_under`/`R_hedge` formulas. This is strong enough to act on and not strong enough to publish as-is. **Replication across seeds is the priority.**
+
+### 3. The real calibration problem is structural, and TCL cannot reach it
+
+On the test set the model asserts mean confidence **0.478** while being right **2.7%** of the time. But its hedge *classification* is 99.9% correct -- it knows these facts are volatile. The failure is that the confidence scalar bolted to `[TEMPORAL_HEDGE]` is 0.45, fixed by fiat, and never validated against realised accuracy.
+
+**No token in the scheme can fix this.** The floor is `[UNKNOWN]` at 0.10, which would still give ECE ~0.073 -- and `[UNKNOWN]` appears **zero times in the training data**, so the model cannot learn to emit it at all. That traces to the unfinished Week-2 task in `docs/STATUS.md` (`[UNKNOWN]` generation via deployment-date offset sampling, assigned to Aarav).
+
+The achievable ECE ceiling is set by the confidence-scalar scheme and a data gap, not by the calibration loss. This is the most consequential finding of the exercise and it reframes what the paper can honestly claim.
+
+### 4. Where the method does work
+
+On stable facts the model scores EM 0.86-0.88 and ECE ~0.15 -- it knows immutable facts and says so. The hedge-token approach is sound where the model has real knowledge; the temporal set is brutal because the answers genuinely aren't there.
+
+### 5. TCL's measurable cost, now quantified
+
+TCL downgraded 3 of 49 stable facts to `[COND_CONFIDENT]` (hedge accuracy 1.000 -> 0.939, ECE 0.152 -> 0.160). Small, real, and in the predicted direction -- the over-hedging price of the reduced overconfidence seen in training. Detectable *only* on the stress set, which is exactly why temporal-delta test alone is insufficient.
+
+## 2026-08-11 -- Generation script built; two structural problems with the evaluation as designed
+
+**Built `src/training/generate_predictions.py`** -- the missing link. Loads an adapter, rebuilds the exact LoRA structure it was trained with, greedy-decodes answer + hedge, and emits records in the canonical shape `adapt_predictions.py` documents, so output drops into Jason's pipeline unmodified. Runs at ~0.24 s/example; fallback rate 0.000, i.e. the model emits hedge tokens in free generation rather than only under teacher forcing.
+
+Sanity check on real generations -- exactly the phenomenon the paper is about:
+
+| question | predicted | gold | hedge |
+|---|---|---|---|
+| CEO of Nike? | Mark Parker | John Donahoe | `[TEMPORAL_HEDGE]` |
+| CEO of Mozilla? | Brendan Eich | Mitchell Baker | `[TEMPORAL_HEDGE]` |
+
+Stale-but-once-correct answers, appropriately hedged.
+
+**Problem 1: the previously reported 93.2%/93.4% hedge accuracies are TRAINING-SET numbers.** `run_tcl_mlx.py` evaluates over the same slice it trains on. The paired SFT-vs-TSCT comparison remains valid (both arms measured identically on identical data) but those are not generalisation figures and must not be reported as such. The generation runs now produce the first held-out numbers this project has ever had.
+
+**Problem 2: `temporal-delta`'s test split cannot detect over-hedging.** All 3,622 test rows are `[TEMPORAL_HEDGE]` (3,287) or `[COND_CONFIDENT]` (335) -- **zero `[CONFIDENT]`, zero `[UNKNOWN]`** -- because the split is time-partitioned to facts that changed in 2023-2024, and stable facts by definition do not change. So:
+- always-`[TEMPORAL_HEDGE]` scores ~90.8% hedge accuracy on this set,
+- over-hedging is *structurally invisible* here, and reporting temporal-delta test alone systematically flatters an over-hedging model -- which is precisely the direction TCL pushes (see the entry below).
+
+This is why the stress sets are not optional. `stress_stable_facts.jsonl` (49 immutable facts, all gold `[CONFIDENT]`) is the only over-hedging detector available, and has never been run. Both arms are being evaluated on both sources.
+
+**Emerging concern to confirm once numbers land:** early test-set EM is ~4.6%, while `[TEMPORAL_HEDGE]` asserts 0.45 confidence. If that holds, the model is *still* badly overconfident even when hedging correctly -- the calibrated response for a fact it gets right 5% of the time is nearer `[UNKNOWN]` (0.10). And `[UNKNOWN]` appears **zero times in the training data**, so the model cannot learn to emit it. That traces directly to an unfinished Week-2 task (`[UNKNOWN]` generation via deployment-date offset sampling, assigned to Aarav in `docs/STATUS.md`). If confirmed, the ceiling on achievable ECE is set by a data gap, not by TCL.
+
 ## 2026-08-11 -- SFT vs TSCT at 7B: identical accuracy, halved overconfidence. The claim needs restating.
 
 **The team's first-ever paired TSCT-vs-SFT result on a working checkpoint.** Same model, data, seed, steps; the only difference is lambda.
