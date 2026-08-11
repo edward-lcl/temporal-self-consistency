@@ -369,6 +369,26 @@ We therefore report a negative result about a method, a set of defects in a benc
 
 ---
 
+## Generative AI Disclosure
+
+Sections 4–6, the abstract, and the revised Section 1 contributions list were drafted by an AI agent (Claude) working from experimental results the same agent produced, under the direction of one author. Sections 2–3 are the original human-authored draft. All experiments, the reimplemented training and evaluation harness, the Wikidata staleness audit, and the validity controls were executed by the agent; the experimental direction, the decisions about what to investigate, and several of the framings that became findings were the author's.
+
+We ran a voice-fidelity check (Pangram) over the authored prose rather than relying on assertion. Per-section results:
+
+| section | verdict | fraction AI-assisted | worst window |
+|---|---|---|---|
+| Abstract | AI | 1.00 | 0.97 |
+| §1 Introduction (revised portion) | AI | 1.00 | 0.99 |
+| §4 Results | Mixed | 0.74 | 0.99 |
+| §5 Discussion | AI | 1.00 | 0.99 |
+| §6 Conclusion | AI | 1.00 | 0.99 |
+
+The pattern matches what this instrument reliably reports: data-enumeration passages read as human-authored and dilute the score, while interpretive and thesis prose pegs high. We report these numbers rather than rewriting to move them, because rewriting agent prose to lower a detector score changes the score without changing the authorship, and this paper's whole argument is that a metric moved without the underlying capability is not evidence of anything.
+
+Readers should treat Sections 4–6 as agent-drafted from agent-produced results, reviewed and directed by a human author.
+
+---
+
 ## Limitations
 
 - **Wikidata coverage**: TemporalDelta is derived from Wikidata, which has systematic biases toward Western, English-language, and high-profile entities. The model may learn temporal metacognition for a narrow slice of world knowledge.
