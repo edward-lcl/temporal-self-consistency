@@ -1,0 +1,5 @@
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 87381.33it/s]
+[gen] 3622 examples | source=temporal-delta:test | arm=tsct | adapter=data/prep/tcl_mlx_7b/tsct_seed1/adapter_fixed
+[gen] 100/3622  EM=0.050 hedge_acc=1.000 fallback=0.000 (22s, 0.22s/ex)
+[gen] 200/3622  EM=0.025 hedge_acc=1.000 fallback=0.000 (44s, 0.22s/ex)
+[gen] 300/3622  EM=0.037 hedge_acc=1.000 fallback=0.000 (68s, 0.23s/ex)

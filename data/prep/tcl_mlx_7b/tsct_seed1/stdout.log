@@ -19,3 +19,30 @@ Trainable parameters: 0.168% (12.780M/7615.617M)
 [mlx] fixed step 1600 ce=3.1959 total=3.2243 grad=8.678624153137207 conf_frac=0.500 (1281s)
 [mlx] fixed step 1800 ce=2.4382 total=2.4584 grad=2.6333906650543213 conf_frac=0.500 (1439s)
 [mlx] fixed step 2000 ce=1.4209 total=1.4390 grad=3.809786319732666 conf_frac=0.250 (1606s)
+[mlx] fixed step 2200 ce=0.8297 total=0.8754 grad=11.352117538452148 conf_frac=0.500 (1761s)
+[mlx] fixed step 2400 ce=0.8403 total=0.9011 grad=8.627734184265137 conf_frac=0.750 (1919s)
+[mlx] fixed step 2600 ce=1.1057 total=1.1448 grad=15.702569007873535 conf_frac=0.750 (2072s)
+[mlx] fixed step 2800 ce=0.5566 total=0.5750 grad=6.730850696563721 conf_frac=0.250 (2226s)
+[mlx] fixed step 3000 ce=1.3680 total=1.4554 grad=8.066178321838379 conf_frac=0.250 (2383s)
+[mlx] fixed step 3200 ce=0.9543 total=1.0835 grad=3.6879987716674805 conf_frac=0.000 (2535s)
+[mlx] fixed step 3400 ce=1.3955 total=1.4102 grad=4.36461877822876 conf_frac=0.250 (2689s)
+[mlx] fixed step 3600 ce=0.9065 total=0.9490 grad=4.334908485412598 conf_frac=0.250 (2837s)
+[mlx] fixed step 3800 ce=1.3043 total=1.3440 grad=3.768617868423462 conf_frac=0.750 (2985s)
+[mlx] fixed step 4000 ce=0.9145 total=0.9425 grad=6.710294723510742 conf_frac=0.500 (3136s)
+[mlx] fixed step 4200 ce=0.6880 total=0.8344 grad=9.30996322631836 conf_frac=1.000 (3293s)
+[mlx] fixed step 4400 ce=1.0933 total=1.1286 grad=2.5722689628601074 conf_frac=0.500 (3452s)
+[mlx] fixed step 4600 ce=0.5744 total=0.6271 grad=9.815096855163574 conf_frac=0.750 (3615s)
+[mlx] fixed step 4800 ce=0.1396 total=0.1772 grad=4.44652795791626 conf_frac=0.250 (3774s)
+[mlx] fixed step 5000 ce=0.6260 total=0.6628 grad=11.510083198547363 conf_frac=0.500 (3933s)
+[mlx] fixed step 5200 ce=0.5701 total=0.6156 grad=12.488910675048828 conf_frac=0.750 (4087s)
+[mlx] fixed step 5400 ce=0.7350 total=0.7682 grad=2.753500461578369 conf_frac=0.250 (4244s)
+[mlx] fixed step 5600 ce=0.6419 total=0.7285 grad=5.880133152008057 conf_frac=1.000 (4399s)
+[mlx] fixed step 5800 ce=0.6674 total=0.7760 grad=11.591772079467773 conf_frac=1.000 (4552s)
+[mlx] fixed step 6000 ce=0.7702 total=0.7958 grad=6.428619384765625 conf_frac=0.500 (4708s)
+[mlx] fixed post-train (n=8008) acc=0.9324 majority=0.4994 dist={'[CONFIDENT]': 0.5084915084915085, '[COND_CONFIDENT]': 0.05931568431568431, '[TEMPORAL_HEDGE]': 0.43219280719280717, '[UNKNOWN]': 0.0}
+[mlx] fixed accuracy lift over majority-class baseline: +0.4331 (discriminating)
+[mlx] fixed finished: 6006 steps in 4711.7s
+[mlx] saved adapter -> data/prep/tcl_mlx_7b/tsct_seed1/adapter_fixed
+
+[mlx] wrote data/prep/tcl_mlx_7b/tsct_seed1/loss_log.csv
+[mlx] wrote data/prep/tcl_mlx_7b/tsct_seed1/run_meta.json

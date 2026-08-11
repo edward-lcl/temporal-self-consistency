@@ -43,6 +43,41 @@ any of them move.
 
 ---
 
+## Bottom line as of 2026-08-11
+
+**TCL's only surviving claim is that its gradient path is now connected. Every
+behavioural claim tested has failed replication.**
+
+| claim | status |
+|---|---|
+| A1 — the `argmax` bug severed the calibration gradient; the fix reconnects it | `ESTABLISHED` (4 seeds @0.5B, 3 @7B) |
+| A3 — padded-vocab models silently break hedge training | `ESTABLISHED` |
+| A2 — the fix prevents hedge collapse | `REFUTED` (inverts at seed 3) |
+| B1 — TCL reduces ECE | `REFUTED` (0.0046) |
+| B2 — TCL shifts error direction | `REFUTED` (holds seed 0, gone seed 1) |
+| B5 — the hedge output discriminates per example | `REFUTED` (within-relation AUROC 0.500) |
+| B4 — the Doc's +0.4350 is a broken-baseline artifact | `CONTESTED` (n=1) |
+| B6 / B7 — fine-tuning adds no knowledge, and causes entity interference | `SUPPORTED` |
+| B3, C1, C2, C5, C6 — the benchmark cannot measure the claim | `ESTABLISHED` |
+
+Two independent reasons this setup could not have shown a TCL effect even if one
+exists, so the refutations above should not be read as "TCL cannot work":
+
+1. **The instrument is saturated** (B3). A perfect volatility classifier scores
+   ECE 0.4504; TSCT scores 0.4506. There is no headroom, and a capability-free
+   constant beats both 6x.
+2. **There is no per-example signal to calibrate** (B5, B7). The model learned a
+   relation-level hedge template and an entity-blind answer pool. A calibration
+   loss operating on a quantity that does not vary within a relation has nothing
+   to act on.
+
+The honest summary for the paper: the gradient bug was real and is fixed; the
+benchmark cannot detect whether fixing it helps; and on this data the model is
+doing template matching on both output channels. Demonstrating a TCL effect needs
+a different instrument, not more seeds.
+
+---
+
 # A. Claims about the TCL mechanism
 
 ## A1. The original `c_hat` computation severed the calibration gradient
@@ -116,20 +151,34 @@ Missing: seed replication. But see B3 -- replication will not rescue the claim,
 because the measurement instrument is saturated at the oracle.
 
 ## B2. TCL shifts the direction of residual errors
-**`SUPPORTED`** (n=1 seed, training-set measurement)
+**`REFUTED`** — held at seed 0, vanished at seed 1
 
-At equal hedge accuracy (93.23% vs 93.42%), mean signed confidence error on
-errors falls **+0.3598 -> +0.1740**, and `[CONFIDENT]`-instead-of-hedge errors
-drop **466 -> 351 (-24.7%)**, with the added errors running the safe direction
-(76 -> 170 over-hedges). Consistent with the asymmetric `lambda_over`/`lambda_under`
-design.
+Recorded as `SUPPORTED` on seed 0 and flagged then as "the strongest positive
+claim we have about TCL." The seed-1 pair (D3) removes it.
 
-Caveats: measured on the **training slice** (`run_tcl_mlx.py` evaluates over the
-data it trains on), n=1 seed. Held-out confirmation exists but is small: TSCT
-downgraded 3 of 49 stable facts to `[COND_CONFIDENT]`.
+| | hedge acc | errors | over-confident | mean signed conf error |
+|---|---|---|---|---|
+| SFT seed 0 | 0.9323 | 542 | 86.0% | +0.3598 |
+| TSCT seed 0 | 0.9342 | 527 | 67.6% | **+0.1740** |
+| SFT seed 1 | 0.9344 | 525 | 100.0% | +0.5003 |
+| TSCT seed 1 | 0.9324 | 541 | 100.0% | **+0.4988** |
 
-Missing: seed replication, and a held-out measurement on a volatility-balanced
-set. This is currently the strongest *positive* claim we have about TCL.
+| | seed 0 | seed 1 |
+|---|---|---|
+| mean signed conf error, SFT -> TSCT | **-0.1858** | **-0.0015** |
+| over-confident errors, SFT -> TSCT | 466 -> 356 (**-23.6%**) | 525 -> 537 (**+3.0%**) |
+
+At seed 1 the effect is absent and slightly reversed. The confusion matrices show
+why: at seed 1 both arms make essentially a single error type,
+`[TEMPORAL_HEDGE]` -> `[CONFIDENT]` (SFT 524, TSCT 537), and TSCT produced
+**one** over-hedge error versus 170 at seed 0.
+
+Same failure mode as A2: a single-seed behavioural result that does not survive
+replication. Between-seed variance in TSCT's error profile dwarfs the
+between-arm difference.
+
+Missing: n=2 is enough to withdraw the claim, not enough to bound the variance.
+A third seed would characterise it, but nothing here supports the effect.
 
 ## B3. ECE on temporal-delta test measures base-rate matching, not calibration
 **`ESTABLISHED`** — and this supersedes B1
@@ -271,16 +320,21 @@ exactly the class of error this ledger exists to catch.
 
 Classifying every test prediction by where the answer string exists in the corpus:
 
-| category | base | TSCT |
-|---|---|---|
-| not any value in the dataset | 86.1% | 44.0% |
-| **a real value, but for a DIFFERENT entity** | **7.8%** | **42.0%** |
-| a value for *this* entity (current or prior epoch) | 5.9% | 13.8% |
-| the current value per Wikidata | 0.2% | 0.2% |
+| category | base | SFT-only | TSCT |
+|---|---|---|---|
+| not any value in the dataset | 86.3% | 47.8% | 44.1% |
+| **a real value, but for a DIFFERENT entity** | **7.9%** | **38.1%** | **42.1%** |
+| a value for *this* entity (current or prior epoch) | 5.9% | 14.1% | 13.8% |
+| the current value per Wikidata | 0.2% | 0.2% | 0.2% |
 
 Fine-tuning raised the share of answers drawn from the training corpus from
-**13.7% to 55.8%** — and the growth is overwhelmingly in the *wrong-entity*
-category, up **5.4x** from 7.8% to 42.0%.
+**13.8% to ~56%** — and the growth is overwhelmingly in the *wrong-entity*
+category, up roughly **5x** from 7.9%.
+
+**Attribution: this is fine-tuning, not TCL.** SFT-only (lambda=0) already shows
+38.1% wrong-entity against base's 7.9%; TCL adds a further 4pp. Whatever is
+causing the interference is the fine-tuning itself, and turning the calibration
+loss off does not avoid it.
 
 **Interpretation: the model memorised the pool of plausible answers without
 learning which answer belongs to which entity.** It now retrieves a real
