@@ -4,6 +4,44 @@ _Written 2026-08-09. Validates the differentiable-`c_hat` fix documented in
 `docs/tcl_debugging.md` before committing to a full 8B run, per
 `specs/tsct-project-state.md`'s immediate-next-actions list._
 
+> ## ⚠️ CORRECTION NOTICE — added 2026-08-11
+>
+> This document was written from a **single seed (seed 0)**. Replication across
+> seeds 1-3 confirmed one of its two headline results and **refuted the other**.
+> The original text is left unedited below so the record stands; read it with
+> these two corrections in hand. Full detail: `specs/CLAIMS-LEDGER.md` A1/A2.
+>
+> **1. The gradient-connectivity result HOLDS — stronger than claimed.**
+> `broken` gives exactly 0.0 at 78/78 steps in all four seeds; `fixed` gives
+> nonzero at 78/78 in all four (means 3.69-4.47). It also holds at 7B:
+> 1202/1202 probes nonzero across 3 seeds. This is the load-bearing result and
+> it is now well replicated.
+>
+> **2. The hedge-collapse result DOES NOT REPLICATE.** The section
+> "Hedge-token collapse check" below, and the sentence in "Verdict" beginning
+> _"the collapse check reproduces the original failure mode…"_, are **not
+> supported**. Across seeds:
+>
+> | seed | `broken` post-train | `fixed` post-train |
+> |---|---|---|
+> | 0 (this doc) | `[CONFIDENT]` 99.0% | `[TEMPORAL_HEDGE]` 66.3% |
+> | 1 | `[CONFIDENT]` 100% | `[TEMPORAL_HEDGE]` **100%** |
+> | 2 | `[CONFIDENT]` 100% | `[TEMPORAL_HEDGE]` 96.2% |
+> | 3 | **`[TEMPORAL_HEDGE]` 62.5%** | **`[CONFIDENT]` 100%** |
+>
+> At seed 3 both directions invert: `fixed` collapses to 100% `[CONFIDENT]` —
+> the exact pathology the fix is meant to prevent — while `broken` fails to
+> collapse to it at all. At 78 steps on 104 examples the post-train
+> distribution is seed noise, not signal.
+>
+> **The verdict "the fix is confirmed working" still stands**, but on **one**
+> load-bearing result rather than two.
+>
+> **3. One caveat in this document proved understated.** It warns against using
+> aggregate `tcl_total` drift as a gate-check. That was right, and the reason is
+> sharper than stated: at 7B the calibration terms are ~1% of the summed loss,
+> so `tcl_total` is ~94% cross-entropy. See CLAIMS-LEDGER B2.
+
 ## What this is
 
 A from-scratch, standalone reimplementation of the TCL training loop under

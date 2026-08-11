@@ -266,6 +266,48 @@ untuned one and reporting the format difference as a knowledge difference -- is
 exactly the class of error this ledger exists to catch.
 `base_test_unprompted_partial.jsonl` is retained as the robustness record.
 
+## B7. Fine-tuning taught the answer *vocabulary* without the entity→answer mapping
+**`SUPPORTED`** (n=1 seed per arm) — D4
+
+Classifying every test prediction by where the answer string exists in the corpus:
+
+| category | base | TSCT |
+|---|---|---|
+| not any value in the dataset | 86.1% | 44.0% |
+| **a real value, but for a DIFFERENT entity** | **7.8%** | **42.0%** |
+| a value for *this* entity (current or prior epoch) | 5.9% | 13.8% |
+| the current value per Wikidata | 0.2% | 0.2% |
+
+Fine-tuning raised the share of answers drawn from the training corpus from
+**13.7% to 55.8%** — and the growth is overwhelmingly in the *wrong-entity*
+category, up **5.4x** from 7.8% to 42.0%.
+
+**Interpretation: the model memorised the pool of plausible answers without
+learning which answer belongs to which entity.** It now retrieves a real
+officeholder name from the training distribution and attaches it to the wrong
+organisation. That is textbook interference, not knowledge acquisition.
+
+Read with B5 the picture is consistent on both axes:
+
+| output | what fine-tuning learned |
+|---|---|
+| hedge token | relation-level template (`ceo` -> `[TEMPORAL_HEDGE]`) — B5 |
+| answer | corpus-level answer pool, entity-blind — B7 |
+
+Both are distributional. Neither is fact-specific. This is the direct,
+mechanistic answer to "pattern matching or reasoning?" for this setup, now with
+two independent lines of evidence.
+
+Caveat on reading the base column: base's 86.1% "not in dataset" is **not** a
+fabrication rate. The base model answers with real-world knowledge the dataset's
+value vocabulary simply does not contain (e.g. Neal Mohan, John Donahoe). Absence
+from the corpus is a statement about the corpus, not about correctness — which is
+why the Wikidata row is reported separately.
+
+Missing: seed replication; and the same breakdown for SFT-only, to check whether
+the interference is caused by TCL or by fine-tuning per se (D3 will supply the
+adapters for this).
+
 ---
 
 # C. Claims about the data and task
@@ -435,7 +477,7 @@ suggests it does not know the post-change values. Not a substitute for an audit.
 | ~~D1~~ | **RESOLVED** -> see B6. Fine-tuning lowers volatile EM 30% relative and raises stable EM; it adds the hedge lookup, not knowledge. | — | done |
 | D2 | Do the confidence scalars fit realised accuracy? | 0.95/0.75/0.45/0.10 are assigned by fiat. Realised: 2.7% volatile, 87.8% stable. Fitting them is where ECE actually lives — and it is a **contribution**, not a patch. | ~1 h |
 | D3 | Does B4 survive seeds? | Most consequential, least replicated claim here. | ~3.6 h |
-| D4 | What is in the 86% "neither" bucket? | Distinguishes "no knowledge" from "corrupted knowledge". Mechanistic. | ~1 h |
+| ~~D4~~ | **RESOLVED** -> see B7. Fine-tuning shifts answers into the training corpus (13.7% -> 55.8%), almost all attached to the WRONG entity (7.8% -> 42.0%). Memorised vocabulary, no entity mapping. | — | done |
 | D5 | Does TCL help on a **volatility-balanced** held-out set? | Every held-out measurement so far is on a set where one class is 90.8%. | needs a new split |
 | ~~D8~~ | **RESOLVED** -> see C5. Stale-gold rate 98.7% (2,575/2,610). But only ~0.5% of predictions are penalised for being current, so the contamination is minor and my "inverts the premise" reading was wrong. | — | done |
 | D6 | **Does within-relation discrimination ever exceed 0.5?** (Edward, 2026-08-11) | B5 says our model is a relation→hedge lookup table. The sharp question is whether *any* model does better, or whether this task is only ever solvable by template matching. This is the pattern-matching-vs-reasoning question made measurable, and B5 gives it a clean threshold: within-relation AUROC > 0.5. | see D7 |
