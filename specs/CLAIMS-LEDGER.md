@@ -775,6 +775,77 @@ suggests it does not know the post-change values. Not a substitute for an audit.
 
 ---
 
+# F. What this paper should actually claim
+
+_Added 2026-08-11 after Edward pushed back that a 0.005 ECE delta is not a
+result worth publishing. He is right. The null is not the contribution — the
+reason the null was inevitable is._
+
+## F1. The headline: ECE is invalid as a calibration measure when asserted confidence is far from realised accuracy
+
+Two regimes, same metric, same method, **opposite verdicts**:
+
+| set | gold class | n | realised accuracy | asserts | ratio | ECE verdict |
+|---|---|---|---|---|---|---|
+| volatile (test) | `[TEMPORAL_HEDGE]` | 3,287 | 0.0256 | 0.45 | **17.6x** | oracle 0.4504, best constant **0.0727** — constant wins 6x |
+| volatile (test) | `[COND_CONFIDENT]` | 335 | 0.0448 | 0.75 | **16.7x** | " |
+| stable (stress) | `[CONFIDENT]` | 49 | 0.8776 | 0.95 | 1.08x | oracle 0.1398 = best constant — **oracle wins** |
+
+**The principle.** A hedging scheme's ECE rewards it only insofar as its asserted
+confidences sit near the realised accuracies of the classes they label. When the
+gap is large, ECE is minimised by whichever fixed scalar happens to sit nearest
+the base rate, and a capability-free constant beats a perfect classifier. ECE
+then measures the *scalar-to-base-rate mismatch*, not the method.
+
+This generalises well beyond TSCT: **any** calibration result reported as ECE on
+a benchmark where the model is rarely correct is vulnerable to the same
+inversion, and cannot support a capability claim without constant-policy
+controls reported alongside. That is the citable contribution, and it is a
+methodological claim rather than a negative result about one method.
+
+## F2. The taxonomy is directionally right and numerically wrong by ~17x
+
+The volatility classes *do* order correctly — `[COND_CONFIDENT]` items are more
+often answered correctly than `[TEMPORAL_HEDGE]` ones (0.0448 vs 0.0256). The
+ordering is real. The **magnitudes** (0.75 and 0.45) were assigned by fiat and
+never fitted to anything, and they are off by more than an order of magnitude.
+
+So the four-scalar table is not wrong in *kind*, it is wrong in *scale* — a
+much more precise and more useful diagnosis than "the method failed."
+
+## F3. The hierarchy of confidence signals, measured on one model
+
+| signal | per-example discrimination | can it win on ECE? |
+|---|---|---|
+| fixed constant | none (AUROC 0.5 by construction) | **yes** — best constant beats the oracle 6x |
+| volatility class (what TSCT learns) | ~none within relation (0.4997) | yes, if the scalars are fitted |
+| **model's own answer logprob** | **0.8814 (base), 0.8406 (tuned)** | not measured — untested as an ECE target |
+
+The scheme with the *least* per-example information can score *best* on the
+reported metric. That single row is the paper's argument.
+
+## F4. How to do this correctly — the recommendations that follow
+
+1. **Report constant-policy and oracle controls with every ECE number.** Without
+   them ECE cannot distinguish calibration from base-rate matching (B3, F1).
+2. **Report discrimination separately from calibration** — AUROC *and* average
+   precision, since AUROC flatters rare-positive regimes (B8's AP was 3.3x
+   baseline against an 0.84 AUROC).
+3. **Fit confidence scalars to realised accuracy, and report them as a
+   capability-free baseline**, never as the method (F2, B3).
+4. **Prefer a continuous confidence derived from the model's own distribution**
+   over a discrete token vocabulary; keep tokens as a presentation layer (B8).
+5. **Partition temporal datasets by entity, not by time** — time-partitioning
+   teaches the model the answer the test marks wrong for 29% of items (C7).
+6. **Carry a label-as-of date and re-validate on a schedule.** Gold decays
+   (98.7% stale, C5) and so does any reference you validate against (C6).
+7. **Do not relax exact-match without a capability-grade check** on what the
+   relaxation admits — ours would have been 60% name collisions (C8).
+8. **Guard against dead parameterisations** when adding tokens to padded
+   vocabularies, using a linear contrast (A3).
+
+---
+
 # D. Open — no evidence either way
 
 | # | question | why it matters | cost |
