@@ -52,6 +52,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 
 | claim | status |
 |---|---|
+| **F-1 — we REPAIRED the benchmark (current golds, no train overlap) and every pathology survived; two deepened** | **`ESTABLISHED`** (the real spine) |
 | A1 — the `argmax` bug severed the calibration gradient; the fix reconnects it | `ESTABLISHED` (4 seeds @0.5B, 3 @7B) |
 | A3 — padded-vocab models silently break hedge training | `ESTABLISHED` |
 | A2 — the fix prevents hedge collapse | `REFUTED` (inverts at seed 3) |
@@ -929,6 +930,71 @@ much more precise and more useful diagnosis than "the method failed."
 
 The scheme with the *least* per-example information can score *best* on the
 reported metric. That single row is the paper's argument.
+
+## F-1. We repaired the benchmark. It got worse. This is the real spine.
+**`ESTABLISHED`** — _Edward asked the obvious question: why is "broken verifier" the
+spine, can't we fix it and work past it? We tried. The answer changes the paper._
+
+Both major data defects are repairable with material already in hand, and no new
+generation is needed — existing predictions can simply be rescored:
+
+- **C5 fix:** replace each gold with the live Wikidata current value (2,610 pairs
+  have one).
+- **C7 fix:** drop every test question that also appears in train.
+
+That leaves 1,953 clean items. Rescored:
+
+| | accuracy | ECE (repaired) | ECE (original) |
+|---|---|---|---|
+| SFT-only | **0.0046** | 0.4768 | 0.4552 |
+| TSCT | **0.0026** | 0.4789 | 0.4506 |
+| **oracle** (emit gold hedge) | — | **0.4788** | 0.4504 |
+| constant `[CONFIDENT]` | — | 0.9474 | 0.9227 |
+| constant `[TEMPORAL_HEDGE]` | — | 0.4474 | 0.4227 |
+| **constant `[UNKNOWN]`** | — | **0.0974** | 0.0727 |
+
+**Every pathology survives the repair, and two deepen.** TSCT still sits exactly
+on the oracle (0.4789 vs 0.4788). The capability-free constant still beats a
+perfect classifier, 4.9×. And ECE gets *worse* for both arms.
+
+### Why repair cannot work here
+
+Fixing the labels means scoring against what is true now, which the models almost
+never know: accuracy falls from 2.3–2.7% to **0.46% and 0.26%**. That pushes the
+base rate *further* from every scalar the taxonomy can express, and ECE is
+minimised by whichever scalar sits nearest the base rate. So the repair moves the
+target further from the instrument.
+
+**The broken verifier is a symptom, not the disease.** The disease is the
+**regime**: when a model is correct ~0.5% of the time, no confidence vocabulary
+with a floor of 0.10 can express a calibrated belief, and no calibration loss can
+be measured against it. Better labels do not help. Nor would more seeds, a bigger
+model, or a tuned λ.
+
+### What this does to the paper's spine
+
+Three framings, in order of what the evidence supports:
+
+1. ~~"TCL does not work"~~ — true and uninteresting; the null is unfalsifiable here.
+2. ~~"The benchmark is broken"~~ — true, and it invites "so fix it." We fixed it.
+   It got worse.
+3. **"Temporal factual QA at post-cutoff horizons is a regime where calibration
+   is not measurable by ECE over a discrete confidence vocabulary — and repairing
+   the data makes that worse, not better."** ← this is what we can defend.
+
+The repair is still worth doing and reporting: the labels *are* wrong (C5/C9) and
+anyone using this dataset should know. But it is a **necessary and insufficient**
+fix, and demonstrating its insufficiency empirically is stronger than asserting
+the benchmark is broken.
+
+### The design that follows
+
+Calibration is only measurable where accuracy varies. Our stable-fact set has 88%
+accuracy and there the metric behaves correctly (oracle wins, constants lose,
+F1). The volatile set has 0.3% and it inverts. So a usable temporal calibration
+benchmark must **span accuracy regimes within one evaluation** — which is exactly
+what `stress_mixed_paragraphs.jsonl` was built for and never run. That is the
+concrete recommendation, and it is now supported by measurements at both ends.
 
 ## F0. The organising frame: two TB3 failure modes firing at once
 

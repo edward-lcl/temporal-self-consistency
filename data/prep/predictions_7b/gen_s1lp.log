@@ -1,0 +1,20 @@
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 17890.40it/s]
+[gen] 3622 examples | source=temporal-delta:test | arm=tsct | adapter=data/prep/tcl_mlx_7b/tsct_seed1/adapter_fixed
+Fetching 9 files:   0%|          | 0/9 [00:00<?, ?it/s]Fetching 9 files: 100%|██████████| 9/9 [00:00<00:00, 26546.23it/s]
+[gen] 3622 examples | source=temporal-delta:test | arm=tsct | adapter=data/prep/tcl_mlx_7b/tsct_seed1/adapter_fixed
+[gen] 100/3622  EM=0.050 hedge_acc=1.000 fallback=0.000 (27s, 0.27s/ex)
+[gen] 100/3622  EM=0.050 hedge_acc=1.000 fallback=0.000 (38s, 0.38s/ex)
+[gen] 200/3622  EM=0.025 hedge_acc=1.000 fallback=0.000 (65s, 0.33s/ex)
+[gen] 200/3622  EM=0.025 hedge_acc=1.000 fallback=0.000 (75s, 0.38s/ex)
+[gen] 300/3622  EM=0.037 hedge_acc=1.000 fallback=0.000 (105s, 0.35s/ex)
+[gen] 300/3622  EM=0.037 hedge_acc=1.000 fallback=0.000 (116s, 0.39s/ex)
+[gen] 400/3622  EM=0.035 hedge_acc=1.000 fallback=0.000 (146s, 0.36s/ex)
+[gen] 400/3622  EM=0.035 hedge_acc=1.000 fallback=0.000 (156s, 0.39s/ex)
+[gen] 500/3622  EM=0.030 hedge_acc=0.998 fallback=0.002 (189s, 0.38s/ex)
+[gen] 500/3622  EM=0.030 hedge_acc=0.998 fallback=0.002 (199s, 0.40s/ex)
+[gen] 600/3622  EM=0.025 hedge_acc=0.998 fallback=0.002 (236s, 0.39s/ex)
+[gen] 600/3622  EM=0.025 hedge_acc=0.998 fallback=0.002 (246s, 0.41s/ex)
+[gen] 700/3622  EM=0.026 hedge_acc=0.999 fallback=0.001 (281s, 0.40s/ex)
+[gen] 700/3622  EM=0.026 hedge_acc=0.999 fallback=0.001 (291s, 0.42s/ex)
+[gen] 800/3622  EM=0.022 hedge_acc=0.999 fallback=0.001 (330s, 0.41s/ex)
+[gen] 800/3622  EM=0.022 hedge_acc=0.999 fallback=0.001 (339s, 0.42s/ex)
