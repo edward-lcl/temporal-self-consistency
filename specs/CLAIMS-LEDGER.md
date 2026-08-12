@@ -53,7 +53,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | claim | status |
 |---|---|
 | **F-2 — the question is ABSTENTION, not calibration: 61% precision at 1% coverage, 15.6x base rate** | **`ESTABLISHED`** (the positive direction) |
-| **F-2b/c — operating point scales with vintage across 3 models (6.9% -> 24.1% -> 65.5% @1%); lift constant 12-15x; a SMALLER newer model beats a bigger older one** | **`ESTABLISHED`** (why it is a frontier bet) |
+| **F-2b/c — lift holds 6.9-17x across 5 models/3 families/4B-31B; operating point tracks capability. VINTAGE claim REFUTED by the size-matched pair** | **`ESTABLISHED`** (direction), **`REFUTED`** (vintage) |
 | **F-1 — we REPAIRED the benchmark (current golds, no train overlap) and every pathology survived; two deepened** | **`ESTABLISHED`** (the real spine) |
 | A1 — the `argmax` bug severed the calibration gradient; the fix reconnects it | `ESTABLISHED` (4 seeds @0.5B, 3 @7B) |
 | A3 — padded-vocab models silently break hedge training | `ESTABLISHED` |
@@ -1122,48 +1122,54 @@ gemma's AUROC is *lower* than Qwen's while its precision is far higher, which is
 what a higher base rate does to a ranking metric and should not be read as worse
 discrimination.
 
-### F-2c. Three-point vintage ladder: the lift is constant, the operating point scales
+### F-2c. Five-model ladder — the vintage claim is REFUTED; the operating point tracks capability
 
-Adding a 2025-vintage model, all scored against **live current truth**:
+All scored against **live current truth**:
 
-| model | vintage | params | acc @ current | AUROC | precision @ 1% | lift |
+| model | vintage | arch | quant | acc @ current | precision @ 1% | lift |
 |---|---|---|---|---|---|---|
-| Qwen2.5-7B-Instruct | 2024 | 7B | 0.0058 | 0.9402 | 0.069 | **12.0x** |
-| **gemma-3-4B-it** | **2025** | **4B** | **0.0156** | 0.9244 | **0.241** | **15.5x** |
-| gemma-4-26B-A4B-it | 2026 | 26B (MoE) | **0.0532** | 0.8417 | **0.655** | **12.3x** |
+| Qwen2.5-7B-Instruct | 2024 | 7B dense | 4-bit | 0.0058 | 0.069 | 12.0x |
+| **gemma-3-4B-it** | **2025** | **4B dense** | 4-bit | **0.0156** | 0.241 | 15.5x |
+| **gemma-4-E4B-it** | **2026** | **4B effective (multimodal)** | 4-bit | **0.0081** | 0.138 | **17.0x** |
+| gemma-4-26B-A4B-it | 2026 | 26B MoE | 4-bit | 0.0532 | **0.655** | 12.3x |
+| gemma-4-31B-it | 2026 | 31B dense | 8-bit | **0.0698** | 0.483 | 6.9x |
 
-**The gemma-3-4B row is the load-bearing one.** It is *smaller* than Qwen2.5-7B
-(4B vs 7B) and 2.7x more accurate about the current world. That partially
-decouples vintage from scale in the F6 confound: on this task recency dominates
-parameter count, so the improvement across the ladder is not simply a size
-effect.
+**Correction to the three-point version of this claim.** With only Qwen2.5-7B,
+gemma-3-4B and gemma-4-26B the ladder looked monotone in vintage, and we wrote
+that "recency dominates parameter count." **Getting the size-matched pair working
+refutes that.** gemma-4-E4B (2026, 4B) scores 0.0081 against gemma-3-4B's
+(2025, 4B) 0.0156 — the *newer* model at the same nominal size knows *less* about
+the current world. Ordering by `acc @ current` gives 31B > 26B > 4B(2025) >
+E4B(2026) > 7B(2024), which tracks capability and scale far better than release
+date.
 
-Three regularities:
+The earlier monotone appearance was a size effect wearing a vintage costume: the
+three models happened to be ordered by both. This is precisely the confound F6
+warned about, and it took the fourth and fifth points to expose it.
 
-1. **Current-knowledge accuracy rises monotonically with vintage** — 0.58% ->
-   1.56% -> 5.32% — while the benchmark's own gold scores move the *opposite*
-   way (C9).
-2. **The lift stays put at 12-15x** across three model families, three vintages
-   and a 6.5x parameter range. The ranking machinery is not what improves.
-3. **The absolute operating point scales with base knowledge** — 6.9% -> 24.1%
-   -> 65.5% precision at 1% coverage.
+Caveats that remain, and they are not small: E4B is a nested/MatFormer
+multimodal checkpoint whose "4B effective" is not straightforwardly comparable to
+a dense 4B; gemma-4-31B is **8-bit** where every other row is 4-bit, and
+quantisation directly alters the probability distribution we are measuring, so
+the dense-vs-MoE contrast is not clean either.
 
-AUROC declines slightly across the ladder (0.9402 -> 0.8417); this is the
-expected behaviour of a ranking metric as the positive rate rises, not weaker
-discrimination, and it is exactly why precision-at-coverage rather than AUROC is
-the right report here.
+### What survives
 
-**What this licenses.** A recommendation that improves automatically with model
-progress, and whose improvement is driven by the component that is getting better
-anyway (world knowledge) rather than by one that is not (the confidence ranking).
-The hedge-token channel by contrast is at chance regardless of vintage, scale,
-seeds or lambda.
+1. **The direction works on every model tested.** Ranking by the model's own
+   log-probability beats the base rate by **6.9x–17.0x at 1% coverage** across
+   five checkpoints, three families, 4B–31B, 2024–2026, dense and MoE, 4-bit and
+   8-bit. That range is a broad band rather than the constant we first claimed,
+   but the *sign and magnitude* hold everywhere.
+2. **The absolute operating point tracks `acc @ current`**, which is what the
+   model knows — not what the ranking machinery does. gemma-4-26B reaches 65.5%
+   precision at 1% coverage.
+3. **The benchmark's own gold scores move opposite to current-world accuracy**
+   (C9), so the instrument and reality disagree in direction regardless of which
+   variable drives the improvement.
 
-**Not established:** a size-matched vintage pair. `gemma-4-E4B` was intended for
-this and is unloadable under mlx-lm 0.31.3 -- its checkpoint carries 126
-`language_model.*` parameters the loader rejects, indicating a multimodal or
-MatFormer variant. The Qwen3.5-27B / Qwen3.6-27B pair (F6, byte-identical
-architecture) remains the clean test and is still gated on disk.
+**What we can no longer say:** that the approach improves *because models get
+newer*. What we can say is that it improves as models get **better at the
+underlying task**, and that this holds across every architecture we could load.
 
 ### Why this is a positive result and not a dressed-up negative
 

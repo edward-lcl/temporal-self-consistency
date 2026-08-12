@@ -58,6 +58,27 @@ from .hedge_tokens import HEDGE_TOKENS, HEDGE_TO_CONFIDENCE
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _hf_tok(tokenizer):
+    """Return the object exposing the HF tokenizer API.
+
+    mlx_lm hands back a TokenizerWrapper whose `_tokenizer` is the HF
+    tokenizer, so unwrapping is right there. mlx_vlm hands back a processor
+    whose `.tokenizer` is already an HF tokenizer -- and *its* `_tokenizer` is
+    the raw Rust backend, which has no `apply_chat_template` or `__len__`.
+    Unwrapping unconditionally therefore breaks the multimodal path, so only
+    unwrap when the result still looks like an HF tokenizer.
+    """
+    inner = getattr(tokenizer, "_tokenizer", None)
+    if inner is not None and hasattr(inner, "apply_chat_template"):
+        return inner
+    return tokenizer
+
+
+def _logits(out):
+    """mlx_lm returns a bare logits array; mlx_vlm returns LanguageModelOutput."""
+    return out.logits if hasattr(out, "logits") else out
+
+
 def _norm(s):
     """Lowercase + collapse whitespace. Used only for the containment check."""
     return " ".join(str(s).lower().split())
@@ -106,6 +127,26 @@ def _stop_ids(model_id, hf_tok):
     return ids
 
 
+def _load_multimodal(model_id):
+    """Load a multimodal checkpoint via mlx_vlm and expose its text tower.
+
+    Some checkpoints in the gemma-4 line are audio+vision+text bundles whose
+    text stack uses KV-shared layers (`num_kv_shared_layers`), e.g. E4B has 42
+    layers of which 18 are shared. mlx_lm's text-only gemma4 builds 42-18=24
+    layers and then rejects the remaining checkpoint tensors -- the observed
+    failure was 126 unexpected `language_model.*` parameters starting at
+    layer 24. mlx_vlm implements the full structure, so route these through it.
+
+    Returns a callable with the same contract the generation loop expects:
+    ids -> logits, accepting a `cache` kwarg.
+    """
+    from mlx_vlm import load as vload
+
+    model, processor = vload(model_id)
+    tok = getattr(processor, "tokenizer", processor)
+    return model, tok
+
+
 def load_base_only(model_id):
     """Load the untuned base model, with hedge tokens registered but untrained.
 
@@ -114,9 +155,19 @@ def load_base_only(model_id):
     ships (see CLAIMS-LEDGER A3), so argmax over them is a constant tie-break,
     not a prediction. Only the answer metrics from a base run are interpretable.
     """
-    model, tokenizer = load(model_id)
-    hf_tok = getattr(tokenizer, "_tokenizer", tokenizer)
+    try:
+        model, tokenizer = load(model_id)
+    except Exception as exc:
+        # Multimodal / KV-shared checkpoints are rejected by the text-only
+        # loader; retry through mlx_vlm rather than dropping the model.
+        print(f"[gen] mlx_lm could not load ({type(exc).__name__}); retrying via mlx_vlm", flush=True)
+        model, tokenizer = _load_multimodal(model_id)
+    hf_tok = _hf_tok(tokenizer)
     vocab = getattr(getattr(model, "args", None), "vocab_size", None)
+    if vocab is None:
+        cfg_ = getattr(model, "config", None)
+        tc = getattr(cfg_, "text_config", None)
+        vocab = getattr(tc, "vocab_size", None) if tc else None
 
     # Some families ship no spare embedding rows at all (Mistral-7B-v0.3,
     # gemma-4: vocab_size == len(tokenizer) exactly). Adding hedge tokens there
@@ -150,7 +201,7 @@ def rebuild_adapter(adapter_dir):
     cfg = json.load(open(Path(adapter_dir) / "adapter_config.json"))
     model, tokenizer = load(cfg["model"])
 
-    hf_tok = getattr(tokenizer, "_tokenizer", tokenizer)
+    hf_tok = _hf_tok(tokenizer)
     existing = set(hf_tok.get_vocab().keys())
     new = [t for t in HEDGE_TOKENS if t not in existing]
     if new:
@@ -238,7 +289,7 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
     fallback rate means the model is not actually emitting hedge tokens in
     free generation, which would be a finding in itself.
     """
-    hf_tok = getattr(tokenizer, "_tokenizer", tokenizer)
+    hf_tok = _hf_tok(tokenizer)
     # The fine-tuned arms were TRAINED to answer bare (mean 2.6 words). An
     # unprompted base model answers in prose (mean 45.1 words), which breaks
     # any containment-based comparison: 17x the surface area to contain the
@@ -254,7 +305,7 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
     hedge_set = set(hedge_ids) if hedge_ids else set()
 
     cache = make_prompt_cache(model)
-    logits = model(mx.array([prompt_ids]), cache=cache)[:, -1, :]
+    logits = _logits(model(mx.array([prompt_ids]), cache=cache))[:, -1, :]
     generated, hedge_tok, logprobs = [], None, []
 
     for _ in range(max_tokens):
@@ -270,7 +321,7 @@ def generate_one(model, tokenizer, hedge_ids, question, max_tokens=40, answer_hi
         lp = mx.log(mx.softmax(logits[0].astype(mx.float32), axis=-1)[nxt] + 1e-12)
         logprobs.append(float(lp.item()))
         generated.append(nxt)
-        logits = model(mx.array([[nxt]]), cache=cache)[:, -1, :]
+        logits = _logits(model(mx.array([[nxt]]), cache=cache))[:, -1, :]
 
     used_fallback = hedge_tok is None and bool(hedge_ids)
     if used_fallback:

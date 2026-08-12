@@ -214,3 +214,18 @@ language_model.model.layers.41.self_attn.v_proj.weight.
 [gen] 2200/3622  EM=0.035 hedge_acc=0.000 fallback=0.000 (4237s, 1.93s/ex)
 [gen] 2300/3622  EM=0.034 hedge_acc=0.000 fallback=0.000 (4444s, 1.93s/ex)
 [gen] 2400/3622  EM=0.035 hedge_acc=0.000 fallback=0.000 (4600s, 1.92s/ex)
+[gen] 2500/3622  EM=0.036 hedge_acc=0.000 fallback=0.000 (4716s, 1.89s/ex)
+[gen] 2600/3622  EM=0.037 hedge_acc=0.000 fallback=0.000 (4829s, 1.86s/ex)
+[gen] 2700/3622  EM=0.036 hedge_acc=0.000 fallback=0.000 (4964s, 1.84s/ex)
+[gen] 2800/3622  EM=0.036 hedge_acc=0.000 fallback=0.000 (5082s, 1.82s/ex)
+[gen] 2900/3622  EM=0.036 hedge_acc=0.000 fallback=0.000 (5205s, 1.79s/ex)
+[gen] 3000/3622  EM=0.035 hedge_acc=0.000 fallback=0.000 (5404s, 1.80s/ex)
+[gen] 3100/3622  EM=0.034 hedge_acc=0.000 fallback=0.000 (5618s, 1.81s/ex)
+[gen] 3200/3622  EM=0.034 hedge_acc=0.000 fallback=0.000 (5814s, 1.82s/ex)
+[gen] 3300/3622  EM=0.034 hedge_acc=0.000 fallback=0.000 (5948s, 1.80s/ex)
+[gen] 3400/3622  EM=0.036 hedge_acc=0.000 fallback=0.000 (6057s, 1.78s/ex)
+[gen] 3500/3622  EM=0.036 hedge_acc=0.000 fallback=0.000 (6171s, 1.76s/ex)
+[gen] 3600/3622  EM=0.035 hedge_acc=0.000 fallback=0.000 (6278s, 1.74s/ex)
+
+[gen] wrote data/prep/predictions_7b/g4_31b_test.jsonl
+[gen] n=3622  EM=0.0348  hedge_acc=0.0000  fallback_rate=0.0000  wall=6298s
