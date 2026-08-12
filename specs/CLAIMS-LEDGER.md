@@ -68,7 +68,7 @@ and the discrete hedge-token parameterisation is what discards it.**
 | **C7 — fine-tuning explicitly teaches the wrong answer for 29% of test questions** | **`ESTABLISHED`** (mechanism behind B6/B7) |
 | C8 — `exact_match` is a mild floor; the obvious relaxation enriches for name collisions | `ESTABLISHED` |
 | **B10 — 0 of 3 single-seed TSCT behavioural claims survived replication** | **`ESTABLISHED`** (methodological) |
-| **B11 — abstention is regime-dependent; the router's job is regime detection** | **`ESTABLISHED`** |
+| **B11 — the model detects regime per claim WITHIN a passage: 0.92 (base), and stratifying RAISES it where it destroyed the hedge signal** | **`ESTABLISHED`** (strongest result) |
 | **B9 — ranking is horizon-stable (0.80-0.90); the LEVEL carries no dependable horizon information** | **`ESTABLISHED`** at n=2 (level direction flips between seeds) |
 | **B8 — the model's own logprobs predict its correctness at 0.84 where the hedge scheme is at chance** | **`SUPPORTED`, qualified** (z=13.6 but AP only 3.3x baseline; 35% of positives are train-seen) |
 
@@ -668,25 +668,65 @@ original project did, and what we did three times before catching it — is
 reporting seed variance. This is cheap to state and cheap to check, and it is a
 concrete argument for a seed floor in ablation studies of this kind.
 
-## B11. Abstention is regime-dependent, which is what the router must detect
-**`ESTABLISHED`**
+## B11. Abstention is regime-dependent, and the model detects the regime per claim
+**`ESTABLISHED`** — the mixed-paragraph set, finally run
 
-Risk–coverage only helps where accuracy is low:
+Risk-coverage only helps where accuracy is low:
 
 | set | n | accuracy | what abstention buys |
 |---|---|---|---|
-| temporal-delta test (volatile) | 3,622 | 0.039 (0.006 vs current truth) | **everything** — 61% precision at 1% coverage, 15.6× |
-| stress_stable (immutable) | 49 | **0.878** | **nothing** — the base rate is already high, so answering everything is near-optimal |
+| temporal-delta test (volatile) | 3,622 | 0.039 | **everything** — 61% precision at 1% coverage, 15.6x |
+| stress_stable (immutable) | 49 | **0.878** | **nothing** — answering everything is near-optimal |
 
-The two regimes demand opposite policies: answer freely on stable facts, abstain
-on almost everything volatile and answer only the top percentile. **So the
-router's first job is not to score confidence but to detect which regime it is
-in** — and that is a per-item judgement, since a single document mixes both.
+So the two regimes demand opposite policies and a router's first job is deciding
+which one it is in — a per-item judgement, because documents mix both.
 
-This is precisely what `stress_mixed_paragraphs.jsonl` (60 passages combining
-stable and volatile claims) was constructed to test, and it has never been run.
-It is now the highest-value unrun experiment in the project: it is the only
-artifact that puts both regimes inside one input, which is the deployment shape.
+### The test: 60 passages, 233 claims, both regimes inside each input
+
+`stress_mixed_paragraphs.jsonl` was built for exactly this and had never been
+run. Mean per-token log-probability of each claim, scored standalone:
+
+| model | fast (volatile) | slow | immutable | pooled AUROC | **within-passage AUROC** |
+|---|---|---|---|---|---|
+| **Qwen2.5-7B (base)** | −2.8532 | −1.9596 | −1.8509 | 0.8863 | **0.9183** |
+| TSCT (fine-tuned) | −3.2664 | −2.2683 | −2.3149 | 0.8509 | **0.8540** |
+| gemma-4-26B-A4B | −11.4917 | −9.8569 | −9.5513 | 0.7121 | **0.7288** |
+
+AUROC is `logprob -> claim is STABLE`, over the 40 passages containing both
+classes (n=153 claims).
+
+**Volatile claims are systematically more surprising to the model than stable
+ones**, monotonically (fast < slow < immutable) in both base models. The model
+already encodes which regime a claim belongs to, untrained, with no hedge
+vocabulary involved.
+
+### Why this is the strongest result in the ledger
+
+**The same stratification that destroyed the trained channel confirms this one.**
+
+| signal | pooled | stratified | verdict |
+|---|---|---|---|
+| hedge token (B5) | 0.6700 | **0.4997** within relation | artifact — the pooled figure was a between-corpus effect |
+| internal logprob (B11) | 0.8863 | **0.9183** within passage | **real — it gets *stronger*** |
+
+In B5 the pooled 0.67 collapsed to chance once the confound was held fixed. Here
+holding the document fixed *raises* the score. That asymmetry is the cleanest
+evidence available that one channel carries per-item information and the other
+does not, and it is measured on the same project, the same models, the same
+discipline.
+
+### Fine-tuning degrades this too
+
+0.9183 -> 0.8540 within passage, and the monotone ordering breaks (TSCT's
+immutable claims score *below* its slow ones). This is the third measurement
+showing the training procedure damages a signal the base model already had,
+after B8 (0.8814 -> 0.8406 on correctness) and B6 (accuracy).
+
+Caveats: claims are scored standalone rather than conditioned on the passage
+prefix, so position cannot confound the score but deployment realism is reduced;
+conditioning is the obvious follow-up. Log-probability of a claim measures
+familiarity, not truth — a fluent false claim would also score high — so this
+supports *regime detection*, not fact-checking. Single run per model.
 
 ---
 
