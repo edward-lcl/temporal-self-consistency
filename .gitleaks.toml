@@ -1,0 +1,9 @@
+# Written by the fleet vault secret-scan triage (2026-09-28): narrow false-positive
+# allowlists on top of gitleaks' default rules. A real key elsewhere, or on another
+# line of these files, is still caught.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Wikidata claim cache (snak hashes)"
+paths = ['''data/prep/wikidata_matched_cache/[^/]+\.json''']
